@@ -1,0 +1,60 @@
+$x @ r1
+$y @ r2
+
+//Define X and Y.
+$x = #0
+$y = #0
+
+:row
+//Increment X
+$x + #1
+rOP ~ $x
+
+$x == #12
+BRN :nextRow rOP
+$y == #8
+BRN :afterNextRow rOP
+
+// Mod of X plus Mod of Y.
+$x % #2
+rOP ~ r3
+$y % #2
+rOP + r3
+
+
+//COL can only use immediate values.
+rOP == #0
+! rOP
+BRN :after0 rOP
+COL Black
+:after0
+
+rOP == #1
+! rOP
+BRN :after1 rOP
+COL Grey
+:after1
+
+rOP == #2
+! rOP
+BRN :after2 rOP
+COL White
+:after2
+
+
+//Draw Pixel
+PIX $x $y
+
+JMP :row
+
+
+:nextRow
+//Increment Y.
+$y + #1
+rOP ~ $y
+JMP :row
+
+
+:afterNextRow
+//Finally, update the screen.
+UPD

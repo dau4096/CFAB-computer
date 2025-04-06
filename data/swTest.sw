@@ -1,0 +1,1 @@
+d={5316097,5316037,1121420,1120897,983040,983040,0,3211263}function onTick()output.setNumber(1,d[input.getNumber(1)])end

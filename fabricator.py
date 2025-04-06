@@ -45,7 +45,7 @@ BRN			|	 brn A if B is 1 {Conditional}		|	Jumps to A if reg B is 1.
 JMP			|	 brn A 1 {B unused} {Unconditional}	|	Jumps to a marker without a comparison
 EXT 		|	 brn :_end 1 {Unconditional}		|	Exit immediately (Jump to end marker)
 {marker}	|	 :A {B unused}						|	Marker. Used to branch to.
-DEF/END	 	|	def %macroName {args}; ...; end 	|	Used to define a macro. Contents of macro added wherever called. Takes {args}.
+DEF/END	 	|	 def %macroName {args}; ...; end 	|	Used to define a macro. Contents of macro added wherever called. Takes {args}.
 {macro call}| 	 %macroName {args} 					|	Calls a pre-defined macro. Contents of macro added whenever called. Takes {args}.
 {alias}		|	 $aliasName @ A 					|	Every time $aliasName is encountered, replace with register A (useful for programming formatting.)
 """
@@ -60,6 +60,11 @@ LNE 	|	 dim A B; lne A B		|	Line between 2 points.
 CLR 	|	 pnt 8 8; rec 0 0 		|	Clear screen.
 """
 
+global currentColour
+sw = None
+currentColour = 0
+VRAMw, VRAMh = 12, 8
+VRAMstart = 512 - (VRAMw * VRAMh) #416
 
 opcodes = {
 	"nop": "0000", "set": "0001", "mov": "0010", "and": "0011",
@@ -75,6 +80,13 @@ infixOperatorsList = {
 	"=": "set", "~": "mov",
 }
 
+colourNames = (
+	"black", "grey", "white", "red",
+	"pink", "darkbrown", "lightbrown", "orange",
+	"yellow", "bluegrey", "darkgreen", "lightgreen",
+	"magenta", "darkblue", "midblue", "lightblue",
+)
+
 
 
 class FabricationError(Exception):
@@ -86,14 +98,12 @@ class FabricationError(Exception):
 
 def toBin(value, signed=False):
 	if signed:
-		if not (-128 <= value < 128):
-			raise FabricationError(f"Immediate values must be signed 8-bit Integers [-128 → 127]: Encountered value of {value}")
+		#if not (-128 <= value < 128):
+		#	raise FabricationError(f"Immediate values must be signed 8-bit Integers [-128 → 127]: Encountered value of {value}")
 	
-		if value < 0:
-			# Handle two's complement for negative values
-			return format((1 << 8) + value, '08b')
-		else:
-			return format(value, '08b')
+		return format(value+128, '08b')
+
+
 	else:
 		if not (0 <= value < 256):
 			raise FabricationError(f"Register indices must be unsigned 8-bit Integers [0 → 255]: Encountered value of {value}")
@@ -103,8 +113,8 @@ def toBin(value, signed=False):
 
 
 
-def SET(register, value):
-	return opcodes["set"] + register + toBin(int(value) + 128)
+def SET(register, value, immediate=True):
+	return opcodes["set"] + register + toBin(int(value), signed=immediate)
 
 
 
@@ -112,90 +122,143 @@ def BRN(line, condition, bits):
 	binaryLine = str(bin(line)[2:]).zfill(16)
 	halfA, halfB = int(binaryLine[:8], 2), int(binaryLine[8:], 2)
 	return (
-		"0001" + SET(toBin(25), halfA), #Set first JMP register to the first 8 bits.
-		"0001" + SET(toBin(24), halfB), #Set second JMP register to the final 8 bits.
+		"0001" + SET(toBin(29), halfA), #Set first JMP register to the first 8 bits.
+		"0001" + SET(toBin(30), halfB), #Set second JMP register to the final 8 bits.
 		"00" + bits[2] + "0" + opcodes["brn"] + toBin(condition) + toBin(0),
+		blank*6, #NOP afterward for safety.
 	)
+
+
+def PIX(A, B):
+	global currentColour
+	#Coordinate (A, B)
+	RAMaddr = VRAMstart + (A) + (VRAMw * (B))
+	binaryLine = str(bin(RAMaddr)[2:]).zfill(16)
+	halfA, halfB = int(binaryLine[:8], 2), int(binaryLine[8:], 2)
+
+	return (
+			"0101" + SET(toBin(29), halfA, immediate=False),
+			"0101" + SET(toBin(30), halfB, immediate=False),
+			"0001" + SET(toBin(28), currentColour),
+			"0001" + SET(toBin(26), toBin(1)),
+		)
 
 
 
 def convertAllToBin(operator, convertedA, convertedB):
+	global currentColour
 	width, height, blank = toBin(24), toBin(16), "0000"
 	zero, one, rOP = toBin(0), toBin(1), toBin(31)
 
-	initial4Bits = f"00{str(int(bool(convertedA[0])))}{str(int(bool(convertedB[0])))}"
+	if convertedA[0] != None:
+		initial4Bits = f"00{str(int(bool(convertedA[0])))}0"
+	if convertedB[0] != None:
+		initial4Bits = f"000{str(int(bool(convertedB[0])))}"
+	if convertedA[0] != None and convertedB[0] != None:
+		initial4Bits = f"00{str(int(bool(convertedA[0])))}{str(int(bool(convertedB[0])))}"
+
+
 	A, B = convertedA[1], convertedB[1]
+
 	
 	match operator:
 		case "mov" | "and" | "or" | "lss" | "equ" | "gtr" | "add" | "sub" | "mul" | "div" | "rec" | "lne":
 			return (
-				initial4Bits + opcodes[operator] + toBin(A) + toBin(B),
+				initial4Bits + opcodes[operator] + toBin(A, signed=convertedA[0]) + toBin(B, signed=convertedB[0]),
 			)
+
+
+		case "nop":
+			return (
+				blank*6,
+			)
+
+
+		case "upd":
+			return (
+				initial4Bits + opcodes[operator] + blank*4,
+				initial4Bits + opcodes[operator] + blank*4,
+			)
+
 
 		case "set":
 			return (
-				initial4Bits + SET(toBin(A), B),
+				initial4Bits + SET(toBin(A, signed=convertedA[0]), B, immediate=convertedB[0]),
 			)
+
 
 		case "not" | "abs":
 			return (
-				initial4Bits + opcodes[operator] + toBin(A) + blank,
+				initial4Bits + opcodes[operator] + toBin(A, signed=convertedA[0]) + blank*2,
 			)
+
 
 		case "sgn":
 			return (
-				initial4Bits + opcodes["abs"] + toBin(A) + blank,
-				initial4Bits[:3] + "0" + opcodes["div"] + toBin(A) + rOP,
+				initial4Bits + opcodes["abs"] + toBin(A, signed=convertedA[0]) + blank,
+				initial4Bits[:3] + "0" + opcodes["div"] + toBin(A, signed=convertedA[0]) + rOP,
 			)
+
 
 		case "inv":
 			return (
-				"000" + initial4Bits[3] + opcodes["sub"] + zero + toBin(A),
+				"000" + initial4Bits[3] + opcodes["sub"] + zero + toBin(A, signed=convertedA[0]),
 			)
+
 
 		case "mod":
 			return (
-				initial4Bits + opcodes["div"] + toBin(A) + toBin(B),
-				"000" + initial4Bits[3] + opcodes["mul"] + rOP + toBin(B),
-				"000" + initial4Bits[3] + opcodes["sub"] + toBin(A) + rOP,
+				initial4Bits + opcodes["div"] + toBin(A, signed=convertedA[0]) + toBin(B, signed=convertedB[0]),
+				"000" + initial4Bits[3] + opcodes["mul"] + rOP + toBin(B, signed=convertedB[0]),
+				"000" + initial4Bits[3] + opcodes["sub"] + toBin(A, signed=convertedA[0]) + rOP,
 			)
+
 
 		case "xor":
 			return (
-				initial4Bits + opcodes["equ"] + toBin(A) + toBin(B),
+				initial4Bits + opcodes["equ"] + toBin(A, signed=convertedA[0]) + toBin(B, signed=convertedB[0]),
 				blank + opcodes["not"] + rOP + blank,
 			)
+
 
 		case "gte":
 			return (
-				initial4Bits + opcodes["lss"] + toBin(A) + toBin(B),
+				initial4Bits + opcodes["lss"] + toBin(A, signed=convertedA[0]) + toBin(B, signed=convertedB[0]),
 				blank + opcodes["not"] + rOP + blank,
 			)
+
 
 		case "lse":
 			return (
-				opcodes["gtr"] + toBin(A) + toBin(B),
+				opcodes["gtr"] + toBin(A, signed=convertedA[0]) + toBin(B, signed=convertedB[0]),
 				blank + opcodes["not"] + rOP + blank,
 			)
 
+
 		case "jmp":
-			return BRN(A, one, initial4Bits)
+			return BRN(A, 1, "0011")
+
 
 		case "brn":
 			return BRN(A, B, initial4Bits)
 
+
 		case "ext":
-			return BRN(markers["_end"], one, initial4Bits)
+			return BRN(markers["_end"], 1, "0011")
+
 
 		case "ramread":
 			if not (0 <= A <= 511): raise FabricationError(f"RAM Index cannot be higher than 511, or lower than 0. Got: {A}")
 			binaryLine = str(bin(A)[2:]).zfill(16)
 			halfA, halfB = int(binaryLine[:8], 2), int(binaryLine[8:], 2)
-			return (
-				"0001" + SET(toBin(30), halfA),
-				"0001" + SET(toBin(29), halfB),
-				"0000" + opcodes["mov"] + toBin(27) + rOP,
+			val = (
+				"0001" + SET(toBin(30), halfA, immediate=False),
+				"0001" + SET(toBin(29), halfB, immediate=False),
+				"0001" + SET(toBin(27), one),
 			)
+			if not sw: val.append("0000" + opcodes["mov"] + toBin(27) + rOP)
+			return val
+
 
 		case "ramwrite":
 			if not (0 <= A <= 511): raise FabricationError(f"RAM Index cannot be higher than 511, or lower than 0. Got: {A}")
@@ -203,50 +266,71 @@ def convertAllToBin(operator, convertedA, convertedB):
 			halfA, halfB = int(binaryLine[:8], 2), int(binaryLine[8:], 2)
 			if initial4Bits[3] == "1":
 				return (
-					"0001" + SET(toBin(30), halfA),
-					"0001" + SET(toBin(29), halfB),
+					"0101" + SET(toBin(30), halfA, immediate=False),
+					"0101" + SET(toBin(29), halfB, immediate=False),
 					"0001" + SET(toBin(28), B),
 					"0001" + SET(toBin(26), one),
 				)
 			else:
 				return (
-					"0001" + SET(toBin(30), halfA),
-					"0001" + SET(toBin(29), halfB),
-					"0000" + opcodes["mov"] + toBin(B) + toBin(28),
+					"0101" + SET(toBin(30), halfA, immediate=False),
+					"0101" + SET(toBin(29), halfB, immediate=False),
+					"0000" + opcodes["mov"] + toBin(B, signed=convertedB[0]) + toBin(28),
 					"0001" + SET(toBin(26), one),
 				)
 
-		case "col":
-			raise FabricationError("Replace these with equivalent RAM chain instructions.")
 
-		case "ptr":
-			raise FabricationError("Replace these with equivalent RAM chain instructions.")
+		case "col":
+			if A.lower() not in colourNames:
+				raise FabricationError(f"Unknown colour; {A.lower()}")
+			currentColour = colourNames.index(A.lower())
+
 
 		case "pix":
-			raise FabricationError("Replace these with equivalent RAM chain instructions.")
+			return PIX(A, B)
+
 
 		case "clr":
-			raise FabricationError("Replace these with equivalent RAM chain instructions.")
+			instructions = []
+			for x in range(VRAMw):
+				for y in range(VRAMh):
+					instructions.append(PIX(x, y))
+
+			return instructions
+
 
 		case _:
-			raise FabricationError(f"Unknown Command encountered: {operator} {a} {b}")
+			raise FabricationError(f"Unknown Command encountered: {operator} {A} {B}")
 
 
 
 def convertValues(A):
-	if A.startswith("r"):
+	if A.lower() in colourNames:
+		return None, A.lower()
+
+	elif A.startswith("r"):
 		registerIndex = int(A.replace("r", ""))
-		if registerIndex > 31: raise FabricationError(f"r{registerIndex} is out of range for registers.\nr0-r15 for values\nr16-r17 for true/false.")
+		if registerIndex > 31 or registerIndex < 0:
+			if registerIndex < 48: return False, registerIndex
+
+			raise FabricationError(f"r{registerIndex} is out of range for registers. Limits are r0 and r31.")
+
 		return False, registerIndex
 
 	elif A.startswith("#"):
 		return True, int(A.replace("#", ""))
 
 	elif A.startswith(":"):
-		return None, markers[A.replace(":", "")]
+		return None, markers[A.replace(":", "")][1]
+
+	elif A.capitalize() == "True":
+		return True, 1
+
+	elif A.capitalize() == "False":
+		return True, 0
 
 	else:
-		return None, str(A) #Ensure the fallback is a string.
+		return None, str(A).lower() #Ensure the fallback is a string.
 
 
 
@@ -258,8 +342,8 @@ def convertLine(line):
 	elif len(operands) == 1:
 		operands.extend(["0", "0"])
 
-	if operands[0] in opcodes or operands[0] in ("ext", "lse", "gte", "inv", "sgn", "jmp", "xor", "mod", "ramwrite", "ramread"):
-		#Postfix
+	if operands[0] in opcodes or operands[0] in ("ext", "lse", "gte", "inv", "sgn", "jmp", "xor", "mod", "ramwrite", "ramread", "nop", "col", "clr", "pix"):
+		#Prefix
 		operator, A, B = operands
 
 	elif operands[1] in infixOperatorsList:
@@ -278,9 +362,10 @@ def convertLine(line):
 	convertedB = convertValues(B)
 
 	instructionList = convertAllToBin(operator, convertedA, convertedB)
-	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList]
-	return hexList
-
+	if instructionList is not None:
+		hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList]
+		return hexList
+	return None
 
 
 def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
@@ -376,15 +461,26 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 
 
 def replaceAliases(lines):
-	aliases = {
+	baseAliases = {
+		"out0": "r18",
+		"out1": "r19",
+		"out2": "r20",
+		"out3": "r21",
+
+		"in0": "r22",
+		"in1": "r23",
+		"in2": "r24",
+		"in3": "r25",
+
 		"rop": "r31",
 	}
+	aliases = {}
 	aliasReplaced = []
 
 	for lineNum, curLine in enumerate(lines):
 		"""
 		Define aliasing for register names like so;
-		 varName  @ r1
+		 varName @ r1
 		Every time varName is written, it is replaced by r1 by the fabricator.
 		Allows for nicer formatting of CFAB.
 		"""
@@ -394,9 +490,12 @@ def replaceAliases(lines):
 				aliases[operands[0].replace("$", "")] = operands[2]
 				continue
 
-		fixedLine = curLine
+		fixedLine = curLine.lower()
+		for alias, reg in baseAliases.items():
+			if alias in fixedLine.split(" "):
+				fixedLine = fixedLine.replace(alias, reg)
 		for alias, reg in aliases.items():
-			fixedLine = fixedLine.replace(f"${alias}", reg).replace(alias, reg)
+			fixedLine = fixedLine.replace(f"${alias}", reg)
 
 		if fixedLine not in aliasReplaced:
 			aliasReplaced.append(fixedLine)
@@ -407,20 +506,25 @@ def replaceAliases(lines):
 
 
 if __name__ == "__main__":
-	filename = "ramtest"
-	with open(f"cfab\\{filename}.cfab", "r") as CFABFile:
+	filename = input("File to convert [With extension];\n> ")
+	
+	sw = input("Stormworks format [yes/no]?\n> ")
+	if sw.lower() in ("yes", "ye", "y", "true", "t"): sw = True
+	else: sw = False
+
+	with open(f"cfab\\{filename}", "r") as CFABFile:
 		readlines = CFABFile.readlines()
 		partial_lines = [line.strip().lower() for line in readlines if not line.startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
 
 
 		macros, markers = {}, {}
-		macrosReplaced = replaceMacros(lines)
-		aliasReplaced = replaceAliases(macrosReplaced)
+		macrosReplaced = replaceMacros(lines) #Unpacks macros
+		aliasReplaced = replaceAliases(macrosReplaced) #Replaces aliases
 		del macrosReplaced
 
 
-		for curLine in aliasReplaced:
+		for curLine in aliasReplaced: #Finds markers, and assigns values to them.
 			if curLine.startswith(":"):
 				"""
 				Process markers, which are written like so;
@@ -429,31 +533,60 @@ if __name__ == "__main__":
 				 JMP :marker
 				EXT Always jumps to the final line of the instructions.
 				"""
-				markers[curLine.replace(":", "")] = [accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)+1
-		markers["_end"] = len(aliasReplaced)-1
+				markers[curLine.replace(":", "")] = ([accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)+1, 0)
+		markers["_end"] = (len(aliasReplaced)-1, 0)
 
 
-		fabricated = []
-		#print(aliasReplaced)
+		lnnum = 0
 		for line in aliasReplaced:
 			if not line.startswith(":"):
 				#Convert lines using convertLine().
-				fabricated.extend(convertLine(line))
+				instructions = convertLine(line)
+				if instructions is None: continue
+
+				for markerName, (markerLine, markerCount) in markers.items():
+					if lnnum < markerLine:
+						markers[markerName] = (markerLine, markerCount+len(instructions))
+				lnnum += 1
+
+
+		fabricated = []
+		for i,line in enumerate(aliasReplaced):
+			if not line.startswith(":"):
+				#Convert lines, again, using convertLine().
+				instructions = convertLine(line)
+				if instructions is not None: fabricated.extend(instructions)
 
 		del macros, markers
 		del aliasReplaced
 
 		
 		#Make the list of hex instructions into a set of bytes.
+		swForm = "d={"
+		charlength = 3
 		combinedHex = ""
-		for hexInstruction in fabricated:
+		for idx, hexInstruction in enumerate(fabricated):
 			combinedHex += hexInstruction
+			if sw:
+				newInstr = str(int(hexInstruction.lower(),16)) + ","
+				charlength += len(newInstr)
+				swForm += newInstr
+				if charlength >= 8125:
+					raise FabricationError(f"swForm has exceeded 8192 characters at command {idx} / {len(fabricated)} ({100*round(idx/len(fabricated),4)}%)")
+		swForm += "0,3211263}function onTick()output.setNumber(1,d[input.getNumber(1)])end" #64 characters long
+
 
 		if len(combinedHex) % 2 == 1: combinedHex += "0"
 
 		combinedBytes = bytes.fromhex(combinedHex)
 
 
-	with open(f"data\\{filename}.dat", "wb") as outFile:
+	with open(f"data\\{filename.split('.')[0]}.dat", "wb") as outFile:
 		#Write to a file.
 		outFile.write(combinedBytes)
+		print(f"data\\{filename.split('.')[0]}.dat was successfully created.")
+
+	if sw:
+		with open(f"data\\{filename.split('.')[0]}.sw", "w") as swFile:
+			swFile.write(swForm)
+			print(f"data\\{filename.split('.')[0]}.sw was successfully created.")

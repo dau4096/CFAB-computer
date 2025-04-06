@@ -1,0 +1,50 @@
+%YAML 1.2
+---
+# See http://www.sublimetext.com/docs/syntax.html
+file_extensions:
+  - cfab
+scope: source.example-c
+contexts:
+  main:
+    #Comments begin with a '//' and finish at the end of the line
+    - match: '//'
+      scope: punctuation.definition.comment.example-c
+      push: line_comment
+
+
+    - match: '(?i)\b(def|end|set|nop|mov|and|or|not|xor|equ|gtr|lss|gte|lse|inv|add|sub|mul|div|mod|abs|sgn|brn|jmp|ext|upd)\b'
+      scope: entity.name.function.cfab
+
+    - match: '\b|\s?(&|\||\^|>=|<=|==|~|@|\/|\*|>|<|\-|\+|=|!)\s?'
+      scope: entity.name.function.cfab
+
+    - match: '\b(?i)()\b'
+      scope: entity.name.function.gfab
+
+    - match: '(?i)(:|%)[a-z0-9]+\b'
+      scope: variable.colour
+
+    - match: '\b(r([0-2]?[0-9]|3[0-1]))\b'
+      scope: variable.register
+
+    - match: '\b(?i)(ramwrite|ramread|ramset|rop)\b'
+      scope: variable.register
+
+    - match: '(?i)\$[a-z0-9]+\b'
+      scope: variable.register
+
+    - match: '(#(-?)\d+\b)|(True|False)'
+      scope: variable.immediate
+
+  double_quoted_string:
+    - meta_scope: string.quoted.double.example-c
+    - match: '\\.'
+      scope: constant.character.escape.example-c
+    - match: '"'
+      scope: punctuation.definition.string.end.example-c
+      pop: true
+
+  line_comment:
+    - meta_scope: comment.line.example-c
+    - match: $
+      pop: true
