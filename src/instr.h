@@ -58,7 +58,7 @@ Ia | Ib | F B | I N S T R |
  EQU | 1000 |  8  | FB0, A==B. FB1, A!=B. (!= is equivalent to XOR.) FB2, bitwise XOR. FB3, bitwise XNOR.
  GRT | 1001 |  9  | FB0, A>B. FB1, A<B. FB2, A>=B. FB3 A<=B. (bit 2 changes inclusivity, bit 1 changes func.)
  BRN | 1010 |  A  | FB0, Branch to (A<<8)|B if rOP!=0. FB1, unconditional branch to (A<<8)|B. FB2, same as FB0 but rOP==0.
- I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1 same but outputs immediate/register 16b.
+ I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1, same but outputs immediate/register 16b. FB2, prints some value to console.
  SHF | 1100 |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits.
  EXT | 1101 |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.]
  SLP | 1110 |  E  | Sleep; FB0, sleep for (A<<8)|B milliseconds. FB1, sleeps until user input (should be paired with I_O call after)
@@ -82,14 +82,17 @@ Ia | Ib | F B | I N S T R |
 			"SHF", "EXT", "SLP", "__F"
 		};
 		const std::array<std::string, 4> extMap = {
-			"EXT-HALT", "EXT-CLEAR", "EXT-RAM-WRITE", "EXT-RAM-READ"
+			"HALT", "CLEAR", "RAM-WRITE", "RAM-READ"
+		};
+		const std::array<std::string, 4> i_oMap = {
+			"INPUT", "OUTPUT", "COUT", "I_O"
 		};
 
 		std::string opcodeName = opcodeMap[opcode];
 		if (opcodeName == "EXT") {
 			opcodeName = extMap[flagBits];
 		} else if (opcodeName == "I_O") {
-			opcodeName = (flagBits > 0u) ? "I_O-OUTPUT" : "I_O-INPUT";
+			opcodeName = i_oMap[flagBits];
 		}
 
 		std::cout << "\033[0;mBytes: \033[1;35m0x" << std::hex << instruction << "\033[0;m, Instruction: \033[1;35m" << opcodeName;
@@ -108,6 +111,8 @@ Ia | Ib | F B | I N S T R |
 			uint8_t registerIndexB = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandB), 0u, REG_COUNT-1u));
 			std::cout << "\033[0;m, B-index: \033[1;36mr" << std::to_string(registerIndexB) << " [" << std::to_string(registers[registerIndexB]) << "]";
 		}
+
+		std::cout << "\033[0;m | ";
 	}
 
 
@@ -243,7 +248,12 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case I_O: { //Get input/Set output
-			if (accessBit(flagBits, 0u)) { //Output
+			if (flagBits == 2u) { //std::cout call, effectively.
+				int8_t operandA = static_cast<int8_t>((instruction >> 8u) & BITS_8);
+				uint8_t registerIndexA = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandA), 0u, REG_COUNT-1u));
+				std::cout << "\033[1;33mr" << std::to_string(registerIndexA) << ": " << std::to_string(*Aptr) << "\033[0;m" << std::endl;
+
+			} else if (accessBit(flagBits, 0u)) { //Output
 				//Write values of A and B to the output bits.
 				//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
 				outputBits = get16Bit(Aptr, Bptr);
@@ -314,10 +324,9 @@ Ia | Ib | F B | I N S T R |
 
 	if (!silenceDebug && verbose) {
 		if (returnsValue) {
-			std::cout << "\033[0;m | \033[1;33mReturned: " << std::to_string(*result) << "\033[0;m" << std::endl;
-		} else {
-			std::cout << "\033[0;m" << std::endl;
+			std::cout << "\033[1;33mReturned: " << std::to_string(*result) << "\033[0;m";
 		}
+		std::cout << std::endl;
 	}
 
 

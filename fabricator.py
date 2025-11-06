@@ -225,6 +225,24 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 				"0001" + opcodes["slp"] + BLANK + BLANK,
 			);
 
+		case "input":
+			#Gets user input
+			return (
+				immediates + "00" + opcodes["i_o"] + A + B,
+			);
+
+		case "output":
+			#Writes to output
+			return (
+				immediates + "01" + opcodes["i_o"] + A + B,
+			);
+
+		case "cout":
+			#Writes to console
+			return (
+				immediates[0] + "010" + opcodes["i_o"] + A + BLANK,
+			);
+
 
 
 		case _:
@@ -268,7 +286,11 @@ def convertLine(line):
 		A, operator, B = operands
 		operator = infixOperatorsList[operator]
 
-	elif operands[0] in ("ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread", "xnor", "halt", "if", "sleep", "wait"):
+	elif operands[0] in (
+		"ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread",
+		"xnor", "halt", "if", "sleep", "wait",
+		"input", "output", "cout"
+	):
 		#Chained or unusual operators
 		operator, A, B = operands
 
