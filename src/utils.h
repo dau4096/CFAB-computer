@@ -53,26 +53,19 @@ bool loadInstructions(const std::string& filePath, std::vector<unsigned int>* in
 
 	//24b instructions.
 	//2.5 bytes
-	totalInstructions = static_cast<unsigned int>(std::floor(byteData.size() * 5 / 2)) & BITS_16;
+	totalInstructions = static_cast<unsigned int>(std::floor(byteData.size() / 3)) & BITS_16; //3 Bytes each
 	programCounter = 0u;
 	run = true;
 	for (unsigned int instructionIndex=0u; instructionIndex<totalInstructions; instructionIndex++) {
-		unsigned int instruction;
-		unsigned int byteIndex = std::floor(instructionIndex * 5 / 2);
+		unsigned int byteIndex = instructionIndex * 3;
 
-		/*
-		if ((instructionIndex % 2) > 0u) {
-			//Odd index
-			instruction = static_cast<unsigned int>(
-				() |
-				() |
-				()
-			);
-		} else {
-			//Even index
+		unsigned int instruction = {
+			(static_cast<unsigned int>(byteData[byteIndex]) << 16u) |
+			(static_cast<unsigned int>(byteData[byteIndex + 1u]) << 8u) |
+			(static_cast<unsigned int>(byteData[byteIndex + 2u]))
+		};
 
-		}
-		*/
+		std::cout << std::hex << instruction << std::endl;
 		instructionData->push_back(instruction);
 	}
 

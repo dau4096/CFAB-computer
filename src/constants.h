@@ -12,10 +12,12 @@ using namespace std;
 #define BITS_4 0xF
 #define BITS_8 0xFF
 #define BITS_16 0xFFFF
+
+#define FILE_PATH "data/test.dat"
 //////// GENERAL ////////
 
 //////// DEBUG ////////
-#define DEBUG
+//#define DEBUG
 #define DEBUG_SHOW_OPERATIONS
 #define DEBUG_RUN_TESTS
 //////// DEBUG ////////

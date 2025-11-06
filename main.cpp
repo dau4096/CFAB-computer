@@ -41,10 +41,12 @@ int main() {
 
 	std::cout << "-NORMAL-" << std::endl;
 	std::vector<unsigned int> instructionData;
-	if !(loader::loadInstructions(FILE_PATH, &instructionData)) {
+	if (!loader::loadInstructions(FILE_PATH, &instructionData)) {
 		std::cerr << "Failed to load instructions from: " << FILE_PATH << std::endl;
 		return -1;
 	}
+	std::cout << "Loaded " << instructionData.size() << " instructions" << std::endl;
+
 	//Exec.
 	CFAB::runInstructionSet(instructionData);
 
