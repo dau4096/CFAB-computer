@@ -33,3 +33,4 @@ app
 # Other
 notes.md
 stb_image*.h
+*.o

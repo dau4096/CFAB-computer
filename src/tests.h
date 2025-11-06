@@ -20,6 +20,7 @@ namespace tests {
 
 
 //////// Memory management ////////
+
 void testSETImmediate() {
 	//A = B
 	testInstructions = {
@@ -81,28 +82,31 @@ void testClear() {
 
 void testRAMwrite() {
 	//Write to RAM.
+	registers[REG_RESULT] = 16; //SET result register to 16
 	testInstructions = {
-		0x0u,
+		0xED0004, //Write value in result register to RAM address 4
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assert((
-		"TBA",
-		true
+		"Value in result register was not written to RAM address 4",
+		randomAccessMemory[4u] == registers[REG_RESULT]
 	));
 }
 
 
 void testRAMread() {
 	//Read value from RAM
+	randomAccessMemory[12u] = -8; //Force-Write value to RAM to test
 	testInstructions = {
-		0x0u,
+		0xFD000Cu, //Read value at RAM address 12 into result register
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assert((
-		"TBA",
-		true
+		"Value in RAM address 12 was not written to result register",
+		registers[REG_RESULT] == randomAccessMemory[12u]
 	));
 }
+
 //////// Memory management ////////
 
 
@@ -112,6 +116,7 @@ void testRAMread() {
 
 
 //////// Maths ////////
+
 void testADD() {
 	//A + B
 	registers[0u] = 1; //SET r0 to 1
@@ -202,7 +207,7 @@ void testABS() {
 
 void testSHF_L() {
 	//A << B
-	registers[0u] = 32; //SET r0 to 2
+	registers[0u] = 2; //SET r0 to 2
 	testInstructions = {
 		0x4C0004u, //Left-shift r0 by #4
 	};
@@ -226,6 +231,7 @@ void testSHF_R() {
 		registers[REG_RESULT] == 2
 	));
 }
+
 //////// Maths ////////
 
 
@@ -235,6 +241,7 @@ void testSHF_R() {
 
 
 //////// Logic ////////
+
 void testAND() {
 	//Bitwise AND
 	registers[0u] = 31; //SET r0 to 31
@@ -313,6 +320,7 @@ void testXOR() {
 		registers[3u] == -2
 	));	
 }
+
 //////// Logic ////////
 
 
@@ -322,6 +330,7 @@ void testXOR() {
 
 
 //////// Other ////////
+
 void testBRN() {
 	//Conditional branch, Jump, inverse conditional branch
 
@@ -376,6 +385,37 @@ void testExit() {
 		run == false
 	));	
 }
+
+
+void testInput() {
+	//Input value
+	inputBits = 0x01FFu;
+	testInstructions = {
+		0x0B0001, //Read input bits to registers 0 and 1
+	};
+	CFAB::runInstructionSet(testInstructions);
+	assert((
+		"Registers 0 and 1 did not contain the correct 16 input bits",
+		(registers[0u] == 1) && (registers[1u] == -1)
+	));	
+}
+
+
+void testOutput() {
+	//Output value
+	registers[0u] = 1;  //0x01 Rep.
+	registers[1u] = -1; //0xFF Rep.
+	//Total is 0x01FF
+	testInstructions = {
+		0x1B0001, //Write output bits from values stored in registers 0 and 1
+	};
+	CFAB::runInstructionSet(testInstructions);
+	assert((
+		"Values stored in r0 and r1 were not written to output",
+		outputBits == 0x01FFu
+	));	
+}
+
 //////// Other ////////
 
 
@@ -398,7 +438,7 @@ const std::vector<std::function<void()>> tests = {
 	testAND, testOR, testEQU, testXOR,
 
 	//Other
-	testBRN, testExit
+	testBRN, testExit, testInput, testOutput
 };
 
 

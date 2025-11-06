@@ -29,19 +29,6 @@ inline int8_t* getOperand(const unsigned int& instruction, const unsigned int in
 }
 
 
-
-inline void getInputs(int8_t* A, int8_t* B) {
-	//Get inputs and write to registers A and B.
-	(*A) = static_cast<int8_t>((inputBits >> 8u) & BITS_8);
-	(*B) = static_cast<int8_t>((inputBits >> 0u) & BITS_8);
-}
-
-inline void setOutputs(int8_t A, int8_t B) {
-	//Write values of A and B to the output bits.
-	outputBits = (static_cast<uint16_t>(A) << 8u) | static_cast<uint16_t>(B);
-}
-
-
 bool executeInstruction(const unsigned int instruction, int8_t* result, bool silenceDebug=false) {
 /*
 FB_ --> 2 flag-bits in instr; values 0-3.
@@ -91,8 +78,18 @@ Ia | Ib | F B | I N S T R |
 			"EQU", "GRT", "BRN", "I_O",
 			"SHF", "EXT", "__E", "__F"
 		};
+		const std::array<std::string, 4> extMap = {
+			"EXT-HALT", "EXT-CLEAR", "EXT-RAM-WRITE", "EXT-RAM-READ"
+		};
 
-		std::cout << "\033[0;mBytes: \033[1;35m0x" << std::hex << instruction << "\033[0;m, Instruction: \033[1;35m" << opcodeMap[opcode];
+		std::string opcodeName = opcodeMap[opcode];
+		if (opcodeName == "EXT") {
+			opcodeName = extMap[flagBits];
+		} else if (opcodeName == "I_O") {
+			opcodeName = (flagBits > 0u) ? "I_O-OUTPUT" : "I_O-INPUT";
+		}
+
+		std::cout << "\033[0;mBytes: \033[1;35m0x" << std::hex << instruction << "\033[0;m, Instruction: \033[1;35m" << opcodeName;
 		std::cout << "\033[0;m, Flag-Bits: \033[1;35m" << std::to_string(flagBits);
 		if (Aimmediate) {
 			std::cout << "\033[0;m, A-value: \033[1;36m" << std::to_string(*Aptr);
@@ -242,10 +239,14 @@ Ia | Ib | F B | I N S T R |
 
 		case I_O: { //Get input/Set output
 			if (accessBit(flagBits, 0u)) { //Output
-				setOutputs(*Aptr, *Bptr);
+				//Write values of A and B to the output bits.
+				//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
+				outputBits = (static_cast<uint16_t>(static_cast<uint8_t>(*Aptr)) << 8u) | static_cast<uint16_t>(static_cast<uint8_t>(*Bptr));
 			} else { //Input
 				if (Aimmediate || Bimmediate) {break; /* Do not allow. */}
-				getInputs(Aptr, Bptr);
+				//Get inputs and write to registers A and B.
+				(*Aptr) = static_cast<int8_t>((inputBits >> 8u) & BITS_8);
+				(*Bptr) = static_cast<int8_t>((inputBits >> 0u) & BITS_8);
 			}
 			break;
 		}
@@ -273,12 +274,15 @@ Ia | Ib | F B | I N S T R |
 					break;
 				}
 				case 2u: { //RAMwrite
-					//TBA
+					//Writes value in result register to RAM address (A<<8)|B
+					uint16_t RAMaddr = ((static_cast<uint16_t>(*Aptr) << 8) | static_cast<uint16_t>(*Bptr)) & BITS_12;
+					randomAccessMemory[RAMaddr] = registers[REG_RESULT];
 					break;
 				}
 				case 3u: { //RAMread
-					//TBA
-					(*result) = 0u;
+					//Reads value from RAM address (A<<8)|B to result register
+					uint16_t RAMaddr = ((static_cast<uint16_t>(*Aptr) << 8) | static_cast<uint16_t>(*Bptr)) & BITS_12;
+					(*result) = randomAccessMemory[RAMaddr];
 					returnsValue = true;
 					break;
 				}
