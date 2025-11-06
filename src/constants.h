@@ -42,9 +42,9 @@ using namespace std;
 #define I_O 0xBu
 #define SHF 0xCu
 #define EXT 0xDu
+#define SLP 0xEu
 
 //Not assigned yet;
-#define __E 0xEu
 #define __F 0xFu
 
 //////// OPCODES ////////

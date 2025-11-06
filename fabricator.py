@@ -25,7 +25,7 @@ Ia | Ib | F B | I N S T R |
  I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1 same but outputs immediate/register 16b.
  SHF | 1100 |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits.
  EXT | 1101 |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.]
- __E | 1110 |  E  | 
+ SLP | 1110 |  E  | Sleep; FB0, sleep for (A<<8)|B milliseconds. FB1, sleeps until user input (should be paired with I_O call after)
  __F | 1111 |  F  | 
 """
 
@@ -66,7 +66,7 @@ opcodes = {
 	"nop": "0000", "set": "0001", "mov": "0010", "add": "0011",
 	"sub": "0100", "mul": "0101", "div": "0110", "not": "0111",
 	"equ": "1000", "grt": "1001", "brn": "1010", "i_o": "1011",
-	"shf": "1100", "ext": "1101", "__e": "1110", "__f": "1111"
+	"shf": "1100", "ext": "1101", "slp": "1110", "__f": "1111"
 }
 
 infixOperatorsList = {
@@ -186,7 +186,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 				immediates + "11" + opcodes["grt"] + A + B,
 			);
 
-		case "brn":
+		case "brn" | "if":
 			instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
 			return (
 				immediates + "10" + opcodes["brn"] + instrIdx,
@@ -210,6 +210,19 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 		case "ramread":
 			return (
 				immediates + "11" + opcodes["ext"] + A + B,
+			);
+
+		case "sleep":
+			#Sleeps for specified number of milliseconds
+			sleepMS:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
+			return (
+				immediates + "00" + opcodes["slp"] + sleepMS,
+			);
+
+		case "wait":
+			#Waits for user input
+			return (
+				"0001" + opcodes["slp"] + BLANK + BLANK,
 			);
 
 
@@ -255,7 +268,7 @@ def convertLine(line):
 		A, operator, B = operands
 		operator = infixOperatorsList[operator]
 
-	elif operands[0] in ("ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread", "xnor"):
+	elif operands[0] in ("ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread", "xnor", "halt", "if", "sleep", "wait"):
 		#Chained or unusual operators
 		operator, A, B = operands
 
@@ -405,9 +418,12 @@ def replaceAliases(lines):
 if __name__ == "__main__":
 
 	inFileName = "testloop";
-	if len(sys.argv) > 2:
+	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
-		outFileName = sys.argv[2];
+		if (len(sys.argv) > 2):
+			outFileName = sys.argv[2];
+		else:
+			outFileName = inFileName;
 	else:
 		outFileName = inFileName;
 

@@ -12,8 +12,9 @@ inline size_t numExecuted;
 inline uint16_t inputBits, outputBits; //Used for user I/O.
 inline std::array<int8_t, REG_COUNT> registers; //For short-term values.
 inline std::array<int8_t, RAM_COUNT> randomAccessMemory; //Acts like a disk of sorts. RAM in name solely.
+
 inline bool run;
-inline bool verbose;
+inline bool verbose, checkSpeed = false; //CLI Arg-Parameters
 
 
 

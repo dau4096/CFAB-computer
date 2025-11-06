@@ -1,0 +1,71 @@
+%YAML 1.2
+---
+name: CFAB
+file_extensions:
+  - cfab
+scope: source.cfab
+contexts:
+  main:
+
+
+
+    #QOL features
+    #Comments
+    - match: '//'
+      scope: punctuation.definition.comment
+      push: line_comment
+
+
+    #Markers
+    - match: ':(?i)[a-z0-9]+'
+      scope: string.quoted.double
+
+    #Aliases
+    - match: '(?i)\$[a-z0-9]+'
+      scope: variable.parameter
+
+    - match: '(?i)%[a-z0-9]+'
+      scope: variable.function
+
+
+
+    #Opcode prefix
+    - match: '\b(?i)(nop|set|mov|add|sub|mul|div|not|equ|grt|brn|i_o|shf|ext|slp|__f)\b'
+      scope: keyword.control
+
+    #Inline
+    - match: '(=|~|&|\||!|\^|~\^|==|!=|<|>|<=|>=|\+|-|\*|/|%|@)'
+      scope: keyword.operator
+
+    #Other prefix
+    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|if|ramread|ramwrite|halt|def|end)\b'
+      scope: keyword.control
+
+
+
+    #Immediate values
+    - match: '#d?-?[0-9]+'
+      scope: variable.constant
+
+    - match: '#x[0-9A-F]+'
+      scope: variable.constant
+
+    - match: '#b[0-1]+'
+      scope: variable.constant
+
+
+
+    #Memory addresses
+    - match: '\b(i?)r[0-9]+\b'
+      scope: variable.other
+
+    - match: '\b(?i)rOP\b'
+      scope: variable.other
+
+
+
+
+  line_comment:
+    - meta_scope: comment.line
+    - match: $
+      pop: true

@@ -29,6 +29,11 @@ inline int8_t* getOperand(const unsigned int& instruction, const unsigned int in
 }
 
 
+inline uint16_t get16Bit(int8_t* Aptr, int8_t* Bptr) {
+	return (static_cast<uint16_t>(static_cast<uint8_t>(*Aptr)) << 8u) | static_cast<uint16_t>(static_cast<uint8_t>(*Bptr));
+}
+
+
 bool executeInstruction(const unsigned int instruction, int8_t* result, bool silenceDebug=false) {
 /*
 FB_ --> 2 flag-bits in instr; values 0-3.
@@ -56,7 +61,7 @@ Ia | Ib | F B | I N S T R |
  I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1 same but outputs immediate/register 16b.
  SHF | 1100 |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits.
  EXT | 1101 |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.]
- __E | 1110 |  E  | 
+ SLP | 1110 |  E  | Sleep; FB0, sleep for (A<<8)|B milliseconds. FB1, sleeps until user input (should be paired with I_O call after)
  __F | 1111 |  F  | 
 */
 
@@ -74,7 +79,7 @@ Ia | Ib | F B | I N S T R |
 			"NOP", "SET", "MOV", "ADD",
 			"SUB", "MUL", "DIV", "NOT",
 			"EQU", "GRT", "BRN", "I_O",
-			"SHF", "EXT", "__E", "__F"
+			"SHF", "EXT", "SLP", "__F"
 		};
 		const std::array<std::string, 4> extMap = {
 			"EXT-HALT", "EXT-CLEAR", "EXT-RAM-WRITE", "EXT-RAM-READ"
@@ -232,7 +237,7 @@ Ia | Ib | F B | I N S T R |
 				(registers[REG_RESULT] && !BRNif0) || //BRN-If-1
 				(!registers[REG_RESULT] && BRNif0)    //BRN-If-0.
 			) {
-				programCounter = (static_cast<uint16_t>(*Aptr) << 8u) | static_cast<uint16_t>(*Bptr);
+				programCounter = get16Bit(Aptr, Bptr);
 			}
 			break;
 		}
@@ -241,7 +246,7 @@ Ia | Ib | F B | I N S T R |
 			if (accessBit(flagBits, 0u)) { //Output
 				//Write values of A and B to the output bits.
 				//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
-				outputBits = (static_cast<uint16_t>(static_cast<uint8_t>(*Aptr)) << 8u) | static_cast<uint16_t>(static_cast<uint8_t>(*Bptr));
+				outputBits = get16Bit(Aptr, Bptr);
 			} else { //Input
 				if (Aimmediate || Bimmediate) {break; /* Do not allow. */}
 				//Get inputs and write to registers A and B.
@@ -275,13 +280,13 @@ Ia | Ib | F B | I N S T R |
 				}
 				case 2u: { //RAMwrite
 					//Writes value in result register to RAM address (A<<8)|B
-					uint16_t RAMaddr = ((static_cast<uint16_t>(*Aptr) << 8) | static_cast<uint16_t>(*Bptr)) & BITS_12;
+					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_12;
 					randomAccessMemory[RAMaddr] = registers[REG_RESULT];
 					break;
 				}
 				case 3u: { //RAMread
 					//Reads value from RAM address (A<<8)|B to result register
-					uint16_t RAMaddr = ((static_cast<uint16_t>(*Aptr) << 8) | static_cast<uint16_t>(*Bptr)) & BITS_12;
+					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_12;
 					(*result) = randomAccessMemory[RAMaddr];
 					returnsValue = true;
 					break;
@@ -290,7 +295,12 @@ Ia | Ib | F B | I N S T R |
 			break;
 		}
 
-		case __E: { //Currently unassigned, acts as NOP.
+		case SLP: { //Sleep until event, or for specified time.
+			if (accessBit(flagBits, 0u)) { //Wait for user input
+			} else { //Wait specified number of ms
+				unsigned int sleepMS = get16Bit(Aptr, Bptr);
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
+			}
 			break;
 		}
 
@@ -317,6 +327,11 @@ Ia | Ib | F B | I N S T R |
 
 
 void runInstructionSet(std::vector<unsigned int>& instructionData) {
+	std::chrono::time_point<std::chrono::high_resolution_clock> start;
+	if (checkSpeed) {
+		start = std::chrono::high_resolution_clock::now();
+	}
+
 	int8_t result;
 	while (programCounter < instructionData.size()) {
 		unsigned int instruction = instructionData[programCounter];
@@ -333,6 +348,20 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 		if (!run) {break;}
 	}
 	run = false;
+
+
+	if (checkSpeed) {
+		std::chrono::time_point<std::chrono::high_resolution_clock> end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::milli> elapsed = end - start;
+		double freq = static_cast<double>(numExecuted)*1000.0f/elapsed.count();
+		std::string freqStr = (freq > 1.0e3f) ? std::to_string(freq / 1000.0f)+"k" : std::to_string(freq);
+
+		std::cout << std::endl;
+		std::cout << "Executed:  \033[1;35m" << std::to_string(numExecuted) << " instructions\033[0;m" << std::endl;
+		std::cout << "Elapsed:   \033[1;35m" << elapsed.count() << "ms\033[0;m" << std::endl;
+		std::cout << "Frequency: \033[1;35m" << freqStr << "Hz\033[0;m" << std::endl;
+		std::cout << std::endl;
+	}
 }
 
 }

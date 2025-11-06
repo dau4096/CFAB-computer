@@ -6,29 +6,30 @@ r1 = #116
 r2 == r3
 :markerTest
 brn :markerTest r1
-ext
+halt
 
 set r1 r2
 mov r1 r2
 and r1 r2
 or  r1 r2
-not r1 r2
+not r1
 xor r1 r2
+xnor r1 r2
 equ r1 r2
 gtr r1 r2
 lss r1 r2
 gte r1 r2
 lse r1 r2
-inv r1 r2
+inv r1
 add r1 r2
 sub r1 r2
 mul r1 r2
 div r1 r2
 mod r1 r2
-abs r1 r2
-sgn r1 r2
-brn r1 r2
-jmp r1 r2
+abs r1
+sgn r1
+brn #12
+jmp #12
 ext r1 r2
 
 r1 = #24
@@ -37,7 +38,9 @@ r1 & r2
 r1 | r2
 ! r1
 r1 ^ r2
+r1 ~^ r2
 r1 == r2
+r1 != r2
 r1 > r2
 r1 < r2
 r1 >= r2
@@ -53,3 +56,23 @@ sgn r1 r2
 brn r1 r2
 jmp r1
 ext
+
+RAMread #xFFFF
+RAMwrite #xFFFF
+HALT
+__f
+
+
+
+
+//Macros & aliases
+$testName @ r1
+$testName / r2
+
+def %testMacro $A $B
+$A + $B
+end
+
+%testMacro r1 r3
+
+r2 / r3

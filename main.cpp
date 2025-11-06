@@ -8,7 +8,7 @@ using namespace std;
 
 
 void debug() {
-	std::cout << "-DEBUG-" << std::endl;
+	std::cout << "\033[1;30m-DEBUG-\033[0;m" << std::endl;
 	std::vector<unsigned int> debugInstructions = {
 		0x410001u, //SET r0 to #1
 		0x410102u, //SET r1 to #2
@@ -22,7 +22,7 @@ void debug() {
 
 
 std::string filePath = FILE_PATH;
-bool enablePeek = false, runNormal = true, checkSpeed = false;
+bool enablePeek = false, runNormal = true;
 
 void handleArguments(int argc, char* argv[]) {
 	//Process arguments
@@ -47,7 +47,7 @@ void handleArguments(int argc, char* argv[]) {
     	enablePeek = true;
     }
     if (result.count("test")) {
-		std::cout << "-TESTS-" << std::endl;
+		std::cout << "\033[1;30m-TESTS-\033[0;m" << std::endl;
 		tests::doTests();
         runNormal = false;
     }
@@ -64,44 +64,26 @@ void handleArguments(int argc, char* argv[]) {
 
 
 int main(int argc, char* argv[]) {
-	std::cout << "START" << std::endl;
+	std::cout << "\033[1;33m[START]\033[0;m" << std::endl;
 	handleArguments(argc, argv);
 
 
 	if (runNormal) {
 
-		std::cout << "-NORMAL-" << std::endl;
+		std::cout << "\033[1;30m-NORMAL-\033[0;m" << std::endl;
 		std::vector<unsigned int> instructionData;
 		if (!loader::loadInstructions(filePath, &instructionData)) {
-			std::cerr << "Failed to load instructions from: " << FILE_PATH << std::endl;
+			std::cerr << "\033[1;31mFailed to load instructions from: " << FILE_PATH << "\033[0;m" << std::endl;
 			return -1;
 		}
-		std::cout << "Loaded " << instructionData.size() << " instructions from [" << filePath << "]" << std::endl;
+		std::cout << "\033[1;30mLoaded " << instructionData.size() << " instructions from [" << filePath << "]\033[0;m" << std::endl;
 
 
 		//Execute.
-		std::chrono::time_point<std::chrono::high_resolution_clock> start;
-		if (checkSpeed) {
-			start = std::chrono::high_resolution_clock::now();
-		}
-
 		CFAB::runInstructionSet(instructionData);
-
-		if (checkSpeed) {
-			std::chrono::time_point<std::chrono::high_resolution_clock> end = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<double, std::milli> elapsed = end - start;
-			double freq = static_cast<double>(numExecuted)*1000.0f/elapsed.count();
-			std::string freqStr = (freq > 1.0e3f) ? std::to_string(freq / 1000.0f)+"k" : std::to_string(freq);
-
-			std::cout << std::endl;
-			std::cout << "Executed:  \033[1;35m" << std::to_string(numExecuted) << " instructions\033[0;m" << std::endl;
-			std::cout << "Elapsed:   \033[1;35m" << elapsed.count() << "ms\033[0;m" << std::endl;
-			std::cout << "Frequency: \033[1;35m" << freqStr << "Hz\033[0;m" << std::endl;
-			std::cout << std::endl;
-		}
 	}
 
-	std::cout << "END" << std::endl;
+	std::cout << "\033[1;33m[END]\033[0;m" << std::endl;
 
 	if (enablePeek) {
 		//User requests to view specific register indices.
