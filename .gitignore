@@ -26,11 +26,11 @@
 *.lib
 
 # Compiled programs
-app
+app*
 *.exe
 *.ini
 
 # Other
 notes.md
 stb_image*.h
-*.o
+cxxopts.hpp

@@ -69,9 +69,7 @@ Ia | Ib | F B | I N S T R |
 	bool returnsValue = false;
 
 
-#ifdef DEBUG_SHOW_OPERATIONS
-
-	if (!silenceDebug) {
+	if (!silenceDebug && verbose) {
 		const std::array<std::string, 16> opcodeMap = {
 			"NOP", "SET", "MOV", "ADD",
 			"SUB", "MUL", "DIV", "NOT",
@@ -106,8 +104,6 @@ Ia | Ib | F B | I N S T R |
 			std::cout << "\033[0;m, B-index: \033[1;36mr" << std::to_string(registerIndexB) << " [" << std::to_string(registers[registerIndexB]) << "]";
 		}
 	}
-
-#endif
 
 
 	switch (opcode) {
@@ -193,19 +189,19 @@ Ia | Ib | F B | I N S T R |
 
 		case EQU: { //A==B, A!=B, A^B.
 			switch (flagBits) {
-				case 0u:{ //A == B
+				case 0u: { //A == B
 					(*result) = (*Aptr) == (*Bptr);
 					break;
 				}
-				case 1u:{ //A != B
+				case 1u: { //A != B
 					(*result) = (*Aptr) != (*Bptr);
 					break;
 				}
-				case 2u:{ //Bitwise XOR
+				case 2u: { //Bitwise XOR
 					(*result) = (*Aptr) ^ (*Bptr);
 					break;
 				}
-				case 3u:{ //Bitwise XNOR
+				case 3u: { //Bitwise XNOR
 					(*result) = ~((*Aptr) ^ (*Bptr));
 					break;
 				}
@@ -305,17 +301,14 @@ Ia | Ib | F B | I N S T R |
 
 	}
 
-#ifdef DEBUG_SHOW_OPERATIONS
 
-	if (!silenceDebug) {
+	if (!silenceDebug && verbose) {
 		if (returnsValue) {
 			std::cout << "\033[0;m | \033[1;33mReturned: " << std::to_string(*result) << "\033[0;m" << std::endl;
 		} else {
 			std::cout << "\033[0;m" << std::endl;
 		}
 	}
-
-#endif
 
 
 	return returnsValue;
@@ -328,6 +321,7 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 	while (programCounter < instructionData.size()) {
 		unsigned int instruction = instructionData[programCounter];
 		programCounter++;
+		numExecuted++;
 
 		//run instr;
 		bool gaveResult = executeInstruction(
@@ -337,7 +331,8 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 			registers[REG_RESULT] = result;
 		}
 		if (!run) {break;}
-	}	
+	}
+	run = false;
 }
 
 }

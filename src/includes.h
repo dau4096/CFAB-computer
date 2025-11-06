@@ -15,5 +15,6 @@
 #include <bitset>
 #include <cassert>
 #include <functional>
+#include <chrono>
 
 #endif

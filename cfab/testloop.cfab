@@ -1,4 +1,4 @@
-//Testing making a small loop, to count up to 128.
+//Testing making a small loop, to count up to 127.
 
 r0 = #0
 //Set up the constants beforehand

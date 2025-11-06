@@ -26,18 +26,6 @@ using namespace std;
 
 
 
-//////// DEBUG ////////
-
-//#define DEBUG
-#define DEBUG_SHOW_OPERATIONS
-#define DEBUG_RUN_TESTS
-
-//////// DEBUG ////////
-
-
-
-
-
 //////// OPCODES ////////
 
 #define NOP 0x0u

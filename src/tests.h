@@ -11,6 +11,13 @@ using namespace std;
 
 std::vector<unsigned int> testInstructions;
 
+inline void assertOrThrow(bool condition, const std::string& message) {
+    if (!condition) {
+        throw std::runtime_error(message);
+    }
+}
+
+
 namespace tests {
 
 
@@ -27,10 +34,10 @@ void testSETImmediate() {
 		0x410001u, //SET r0 to #1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Register 0 was not set to value 1",
-		registers[0u] == 1
-	));
+	assertOrThrow(
+		registers[0u] == 1,
+		"Register 0 was not set to value 1"
+	);
 }
 
 
@@ -41,10 +48,10 @@ void testSETRegister() {
 		0x010100u, //SET r1 to r0's value
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Register 1 was not set to the value in Register 0",
-		registers[1u] == registers[0u]
-	));
+	assertOrThrow(
+		registers[1u] == registers[0u],
+		"Register 1 was not set to the value in Register 0"
+	);
 }
 
 
@@ -55,14 +62,14 @@ void testMOV() {
 		0x020001u //MOV r0 to r1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Register 1 was not set to 1",
-		registers[1u] == 3
-	));
-	assert((
-		"Register 0 was not reset to 0",
-		registers[0u] == 0
-	));
+	assertOrThrow(
+		registers[1u] == 3,
+		"Register 1 was not set to 1"
+	);
+	assertOrThrow(
+		registers[0u] == 0,
+		"Register 0 was not reset to 0"
+	);
 }
 
 
@@ -73,10 +80,10 @@ void testClear() {
 		0x9D0000u, //EXT --> CLEAR_REGISTERS to 0.
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Registers were not cleared to 0",
-		registers[1u] == 0
-	));
+	assertOrThrow(
+		registers[1u] == 0,
+		"Registers were not cleared to 0"
+	);
 }
 
 
@@ -87,10 +94,10 @@ void testRAMwrite() {
 		0xED0004, //Write value in result register to RAM address 4
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Value in result register was not written to RAM address 4",
-		randomAccessMemory[4u] == registers[REG_RESULT]
-	));
+	assertOrThrow(
+		randomAccessMemory[4u] == registers[REG_RESULT],
+		"Value in result register was not written to RAM address 4"
+	);
 }
 
 
@@ -101,10 +108,10 @@ void testRAMread() {
 		0xFD000Cu, //Read value at RAM address 12 into result register
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Value in RAM address 12 was not written to result register",
-		registers[REG_RESULT] == randomAccessMemory[12u]
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == randomAccessMemory[12u],
+		"Value in RAM address 12 was not written to result register"
+	);
 }
 
 //////// Memory management ////////
@@ -125,10 +132,10 @@ void testADD() {
 		0x030001u //ADD r0 to r1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Addition result was not 3 [1+2]",
-		registers[REG_RESULT] == 3
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 3,
+		"Addition result was not 3 [1+2]"
+	);
 }
 
 
@@ -140,10 +147,10 @@ void testSUB() {
 		0x040001u, //SUB r1 from r0
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Subtraction result was not 8 [10-2]",
-		registers[REG_RESULT] == 8
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 8,
+		"Subtraction result was not 8 [10-2]"
+	);
 }
 
 
@@ -155,10 +162,10 @@ void testMUL() {
 		0x050001u, //MUL r0 by r1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Multiplication result was not 32 [8*4]",
-		registers[REG_RESULT] == 32
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 32,
+		"Multiplication result was not 32 [8*4]"
+	);
 }
 
 
@@ -170,10 +177,10 @@ void testDIV() {
 		0x060001u, //DIV r0 by r1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Division result was not 2 [8/4]",
-		registers[REG_RESULT] == 2
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 2,
+		"Division result was not 2 [8/4]"
+	);
 }
 
 
@@ -184,10 +191,10 @@ void testINV() {
 		0x270000u, //Numerically invert r0
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Numerical inversion result was not -8 [-(8)]",
-		registers[REG_RESULT] == -8
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == -8,
+		"Numerical inversion result was not -8 [-(8)]"
+	);
 }
 
 
@@ -198,10 +205,10 @@ void testABS() {
 		0x370000u, //Absolute value of r0
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Numerical inversion result was not 8 [abs(-8)]",
-		registers[REG_RESULT] == 8
-	));	
+	assertOrThrow(
+		registers[REG_RESULT] == 8,
+		"Numerical inversion result was not 8 [abs(-8)]"
+	);
 }
 
 
@@ -212,10 +219,10 @@ void testSHF_L() {
 		0x4C0004u, //Left-shift r0 by #4
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Left-shift result was not 32 [2 << 4]",
-		registers[REG_RESULT] == 32
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 32,
+		"Left-shift result was not 32 [2 << 4]"
+	);
 }
 
 
@@ -226,10 +233,10 @@ void testSHF_R() {
 		0x5C0004u, //Right-shift r0 by #4
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Right-shift result was not 2 [32 >> 4]",
-		registers[REG_RESULT] == 2
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 2,
+		"Right-shift result was not 2 [32 >> 4]"
+	);
 }
 
 //////// Maths ////////
@@ -250,10 +257,10 @@ void testAND() {
 		0x150001u, //Bitwise r0 AND r1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Bitwise AND result was not 7 [31 & 7]",
-		registers[REG_RESULT] == 7
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 7,
+		"Bitwise AND result was not 7 [31 & 7]"
+	);
 }
 
 
@@ -265,10 +272,10 @@ void testOR() {
 		0x130001u, //Bitwise r0 OR r1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Bitwise OR result was not 13 [9 | 5]",
-		registers[REG_RESULT] == 13
-	));
+	assertOrThrow(
+		registers[REG_RESULT] == 13,
+		"Bitwise OR result was not 13 [9 | 5]"
+	);
 }
 
 
@@ -278,22 +285,22 @@ void testEQU() {
 	registers[1u] = 8; //SET r1 to 8
 	testInstructions = {
 		0x080001u, //r0 == r1 [FALSE]
-		0x027F02u, //Move result to r2
+		0x023F02u, //Move result to r2
 
 		0x180001u, //r0 != r1 [TRUE]
-		0x027F03u, //Move result to r3
+		0x023F03u, //Move result to r3
 	};
 
 	CFAB::runInstructionSet(testInstructions);
 
-	assert((
-		"Equals result was not 0 [9 == 8]",
-		registers[2u] == 0
-	));
-	assert((
-		"Not-Equals result was not 1 [9 != 8]",
-		registers[3u] == 1
-	));
+	assertOrThrow(
+		registers[2u] == 0,
+		"Equals result was not 0 [9 == 8]"
+	);
+	assertOrThrow(
+		registers[3u] == 1,
+		"Not-Equals result was not 1 [9 != 8]"
+	);
 }
 
 
@@ -303,22 +310,22 @@ void testXOR() {
 	registers[1u] = 8; //SET r1 to 8
 	testInstructions = {
 		0x280001u, //r0 ^ r1
-		0x027F02u, //Move result to r2
+		0x023F02u, //Move result to r2
 
 		0x380001u, //~(r0 ^ r1)
-		0x027F03u, //Move result to r3
+		0x023F03u, //Move result to r3
 	};
 
 	CFAB::runInstructionSet(testInstructions);
 
-	assert((
-		"Equals result was not 1 [9 ^ 8]",
-		registers[2u] == 1
-	));
-	assert((
-		"Not-Equals result was not -2 [~(9 ^ 8)]",
-		registers[3u] == -2
-	));	
+	assertOrThrow(
+		registers[2u] == 1,
+		"XOR result was not 1 [9 ^ 8]"
+	);
+	assertOrThrow(
+		registers[3u] == -2,
+		"XNOR result was not -2 [~(9 ^ 8)]"
+	);	
 }
 
 //////// Logic ////////
@@ -341,10 +348,10 @@ void testBRN() {
 		0xEA0008u //Branch to line 8 if rOP
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Did not jump to line 8 when result was true",
-		programCounter == 8u
-	));	
+	assertOrThrow(
+		programCounter == 8u,
+		"Did not jump to line 8 when result was true"
+	);	
 
 	//Unconditional
 	programCounter = 0u;
@@ -353,10 +360,10 @@ void testBRN() {
 		0xCA0010u //Branch to line 16 unconditionally
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Did not jump to line 16 unconditionally",
-		programCounter == 16u
-	));	
+	assertOrThrow(
+		programCounter == 16u,
+		"Did not jump to line 16 unconditionally"
+	);
 
 	//Inverse conditional
 	programCounter = 0u;
@@ -365,10 +372,10 @@ void testBRN() {
 		0xFA0020u //Branch to line 32 if not result
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Did not jump to line 32 when result is 0",
-		programCounter == 32u
-	));	
+	assertOrThrow(
+		programCounter == 32u,
+		"Did not jump to line 32 when result is 0"
+	);
 
 }
 
@@ -380,10 +387,10 @@ void testExit() {
 		0x0D0000u, //EXT --> HALT_PROGRAM
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Program did not halt",
-		run == false
-	));	
+	assertOrThrow(
+		run == false,
+		"Program did not halt"
+	);
 }
 
 
@@ -394,10 +401,10 @@ void testInput() {
 		0x0B0001, //Read input bits to registers 0 and 1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Registers 0 and 1 did not contain the correct 16 input bits",
-		(registers[0u] == 1) && (registers[1u] == -1)
-	));	
+	assertOrThrow(
+		(registers[0u] == 1) && (registers[1u] == -1),
+		"Registers 0 and 1 did not contain the correct 16 input bits"
+	);	
 }
 
 
@@ -410,10 +417,10 @@ void testOutput() {
 		0x1B0001, //Write output bits from values stored in registers 0 and 1
 	};
 	CFAB::runInstructionSet(testInstructions);
-	assert((
-		"Values stored in r0 and r1 were not written to output",
-		outputBits == 0x01FFu
-	));	
+	assertOrThrow(
+		outputBits == 0x01FFu,
+		"Values stored in r0 and r1 were not written to output"
+	);
 }
 
 //////// Other ////////
@@ -442,16 +449,22 @@ const std::vector<std::function<void()>> tests = {
 };
 
 
-void run() {
-	//Tests specific cases using assert.
+void doTests() {
+	//Tests specific cases using assertOrThrow.
 
 	//Main tests
 	for (std::function<void()> test : tests) {
 		std::cout << std::endl;
 		std::fill(registers.begin(), registers.end(), static_cast<int8_t>(0)); //Clear all registers.
 		programCounter = 0u;
-		test();
-		std::cout << "\033[1;32m[TEST PASSED]\033[0;m" << std::endl;
+		run = true;
+
+		try {
+			test();
+			std::cout << "\033[1;32m[TEST PASSED]\033[0;m" << std::endl;
+		} catch (const std::exception& e) {
+			std::cerr << "\033[1;31m[TEST FAILED]\033[0;m : \033[1;33m" << e.what() << "\033[0;m" << std::endl;
+		}
 	}
 	std::cout << std::endl;
 
