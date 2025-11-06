@@ -59,6 +59,8 @@ DEF/END	 |	def %macroName {args}; ...; end 	|	Used to define a macro. Contents o
 {alias}		|	 $aliasName @ A 					|	Every time $aliasName is encountered, replace with register A (useful for programming formatting.)
 """
 
+import sys;
+
 
 opcodes = {
 	"nop": "0000", "set": "0001", "mov": "0010", "add": "0011",
@@ -402,52 +404,61 @@ def replaceAliases(lines):
 
 if __name__ == "__main__":
 
-	filename = "testloop"
-	with open(f"cfab/{filename}.cfab", "r") as CFABFile:
+	inFileName = "testloop";
+	if len(sys.argv) > 2:
+		inFileName = sys.argv[1];
+		outFileName = sys.argv[2];
+	else:
+		outFileName = inFileName;
+
+	print(f"Reading: cfab/{inFileName}.cfab");
+
+	with open(f"cfab/{inFileName}.cfab", "r") as CFABFile:
 		readlines = CFABFile.readlines()
 		partial_lines = [line.strip().lower() for line in readlines if not line.startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
 
 
-		macros, markers = {}, {}
-		macrosReplaced = replaceMacros(lines)
-		aliasReplaced = replaceAliases(macrosReplaced)
-		del macrosReplaced
+	macros, markers = {}, {}
+	macrosReplaced = replaceMacros(lines)
+	aliasReplaced = replaceAliases(macrosReplaced)
+	del macrosReplaced
 
 
-		for curLine in aliasReplaced:
-			if curLine.startswith(":"):
-				"""
-				Process markers, which are written like so;
-				 :marker
-				You may jump back to these using BRN, JMP or EXT commands, like so;
-				 JMP :marker
-				EXT Always jumps to the final line of the instructions.
-				"""
-				markers[curLine.replace(":", "")] = [accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)
-		markers["_end"] = len(aliasReplaced)-1
+	for curLine in aliasReplaced:
+		if curLine.startswith(":"):
+			"""
+			Process markers, which are written like so;
+			 :marker
+			You may jump back to these using BRN, JMP or EXT commands, like so;
+			 JMP :marker
+			EXT Always jumps to the final line of the instructions.
+			"""
+			markers[curLine.replace(":", "")] = [accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)
+	markers["_end"] = len(aliasReplaced)-1
 
 
-		fabricated = []
-		for line in aliasReplaced:
-			if not line.startswith(":"):
-				#Convert lines using convertLine().
-				fabricated.extend(convertLine(line))
+	fabricated = []
+	for line in aliasReplaced:
+		if not line.startswith(":"):
+			#Convert lines using convertLine().
+			fabricated.extend(convertLine(line))
 
-		del macros, markers
-		del aliasReplaced
+	del macros, markers
+	del aliasReplaced
 
-		
-		#Make the list of hex instructions into a set of bytes.
-		combinedHex = ""
-		for hexInstruction in fabricated:
-			combinedHex += hexInstruction
+	
+	#Make the list of hex instructions into a set of bytes.
+	combinedHex = ""
+	for hexInstruction in fabricated:
+		combinedHex += hexInstruction
 
-		if len(combinedHex) % 2 == 1: combinedHex += "0"
+	if len(combinedHex) % 2 == 1: combinedHex += "0"
 
-		combinedBytes = bytes.fromhex(combinedHex)
+	combinedBytes = bytes.fromhex(combinedHex)
 
+	print(f"Fabrication complete.\nWrote bytes to data/{outFileName}.dat");
 
-	with open(f"data/{filename}.dat", "wb") as outFile:
+	with open(f"data/{outFileName}.dat", "wb") as outFile:
 		#Write to a file.
 		outFile.write(combinedBytes)

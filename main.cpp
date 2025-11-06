@@ -12,7 +12,7 @@ using namespace std;
 
 
 
-int main() {
+int main(int argc, char* argv[]) {
 
 	std::cout << "START" << std::endl;
 
@@ -41,7 +41,8 @@ int main() {
 
 	std::cout << "-NORMAL-" << std::endl;
 	std::vector<unsigned int> instructionData;
-	if (!loader::loadInstructions(FILE_PATH, &instructionData)) {
+	std::string filePath = (argc > 1) ? argv[1] : FILE_PATH;
+	if (!loader::loadInstructions(filePath, &instructionData)) {
 		std::cerr << "Failed to load instructions from: " << FILE_PATH << std::endl;
 		return -1;
 	}
@@ -54,5 +55,19 @@ int main() {
 
 
 	std::cout << "END" << std::endl;
+
+	//User requests to view specific register indices.
+	std::cout << std::endl << "> ";
+	std::string type, indexStr;
+	std::cin >> type >> indexStr;
+	while (1) {
+		int index = std::stoi(indexStr);
+		if (type == "r") {
+			std::cout << "r" << index << ": " << std::to_string(registers[index]) << std::endl;
+		} else if (type == "ram") {
+			std::cout << "RAM-" << index << ": " << std::to_string(randomAccessMemory[index]) << std::endl;
+		}
+		std::cin >> type >> indexStr;
+	}
 
 }
