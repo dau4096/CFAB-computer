@@ -156,7 +156,11 @@ Ia | Ib | F B | I N S T R |
 
 		case DIV: { //Divide 2 values
 			if (*Bptr) { //Nonzero divisor
-				(*result) = (*Aptr) / (*Bptr);
+				if (accessBit(flagBits, 0u)) { //Modulus
+					(*result) = (*Aptr) % (*Bptr);
+				} else { //Division
+					(*result) = (*Aptr) / (*Bptr);
+				}
 			} else { //Div-0
 				(*result) = 0;
 			}
@@ -332,6 +336,7 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 		if (gaveResult) {
 			registers[REG_RESULT] = result;
 		}
+		if (!run) {break;}
 	}	
 }
 

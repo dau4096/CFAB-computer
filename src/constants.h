@@ -18,7 +18,7 @@ using namespace std;
 #define BITS_12 0xFFF
 #define BITS_16 0xFFFF
 
-#define FILE_PATH "data/test.dat"
+#define FILE_PATH "data/testloop.dat"
 
 //////// GENERAL ////////
 
@@ -28,7 +28,7 @@ using namespace std;
 
 //////// DEBUG ////////
 
-#define DEBUG
+//#define DEBUG
 #define DEBUG_SHOW_OPERATIONS
 #define DEBUG_RUN_TESTS
 

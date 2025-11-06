@@ -1,23 +1,32 @@
 #Binary Opcodes (Processing)
 """
-Bin  | Opc | File-Rep.
-_____|_____|__________
-0000 | SET | 0XXAA
-0001 | MOV | 1XXYY
-0010 | AND | 2XXYY
-0011 | OR_ | 3XXYY
-0100 | NOT | 4XX00
-0101 | LSS | 5XXYY
-0110 | EQU | 6XXYY
-0111 | GRT | 7XXYY
-1000 | ADD | 8XXYY
-1001 | SUB | 9XXYY
-1010 | MUL | AXXYY
-1011 | DIV | BXXYY
-1100 | ABS | CXX00
-1101 | BRN | DXXYY
-1110 | REC | EXXYY
-1111 | LNE | FXXYY
+FB_ --> 2 flag-bits in instr; values 0-3.
+A/B --> The values in the instruction; can be register addresses or immediate values.
+Ia/Ib --> Immediate operand A/B. 0: register index. 1: Immediate value.
+INSTR --> Instruction opcode (see below table)
+
+Bit layout;
+Ia | Ib | F B | I N S T R |
+ 1 |  1 | 1 1 |  1 1 1 1  |
+
+ MNE | BITS | HEX | DESCRIPTION
+-----+------+-----+-------------
+ NOP | 0000 |  0  | Blank, No-Op instruction
+ SET | 0001 |  1  | Sets a register to some value. If 2nd value is reg, copy data.
+ MOV | 0010 |  2  | Moves contents of 1 register to another, resets source register to 0.
+ ADD | 0011 |  3  | FB0, Adds 2 values. Can also be used as logical OR. FB1, bitwise OR.
+ SUB | 0100 |  4  | Subtracts 2 values.
+ MUL | 0101 |  5  | FB0, Multiplies 2 values. Can also be used as logical AND. FB1, bitwise AND.
+ DIV | 0110 |  6  | Int-Divides 2 values. If denominator is 0, result is 0. (later -> div0 flag?)
+ NOT | 0111 |  7  | FB0, logical NOT. FB1, bitwise NOT. FB2, invert number. FB3, abs(number)
+ EQU | 1000 |  8  | FB0, A==B. FB1, A!=B. (!= is equivalent to XOR.) FB2, bitwise XOR. FB3, bitwise XNOR.
+ GRT | 1001 |  9  | FB0, A>B. FB1, A<B. FB2, A>=B. FB3 A<=B. (bit 2 changes inclusivity, bit 1 changes func.)
+ BRN | 1010 |  A  | FB0, Branch to (A<<8)|B if rOP!=0. FB1, unconditional branch to (A<<8)|B. FB2, same as FB0 but rOP==0.
+ I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1 same but outputs immediate/register 16b.
+ SHF | 1100 |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits.
+ EXT | 1101 |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.]
+ __E | 1110 |  E  | 
+ __F | 1111 |  F  | 
 """
 
 #Processing Functions
@@ -50,27 +59,17 @@ DEF/END	 |	def %macroName {args}; ...; end 	|	Used to define a macro. Contents o
 {alias}		|	 $aliasName @ A 					|	Every time $aliasName is encountered, replace with register A (useful for programming formatting.)
 """
 
-#Graphics Functions
-"""
-COL 	|	 mov A r254				|	Colour changer.
-PTR 	|	 mov A r252; mov A r253	|	Pointer, with coordinates.
-REC 	|	 rec A B				|	Rectangle.
-PIX 	|	 pnt A B; rec A B		|	Singular Pixel.
-LNE 	|	 dim A B; lne A B		|	Line between 2 points.
-CLR 	|	 pnt 8 8; rec 0 0 		|	Clear screen.
-"""
-
 
 opcodes = {
-	"set": "0000", "mov": "0001", "and": "0010", "or": "0011",
-	"not": "0100", "lss": "0101", "equ": "0110", "gtr": "0111",
-	"add": "1000", "sub": "1001", "mul": "1010", "div": "1011",
-	"abs": "1100", "brn": "1101", "rec": "1110", "lne": "1111"
+	"nop": "0000", "set": "0001", "mov": "0010", "add": "0011",
+	"sub": "0100", "mul": "0101", "div": "0110", "not": "0111",
+	"equ": "1000", "grt": "1001", "brn": "1010", "i_o": "1011",
+	"shf": "1100", "ext": "1101", "__e": "1110", "__f": "1111"
 }
 
 infixOperatorsList = {
 	"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
-	"!": "not", "&": "and", "|": "or", "^": "xor",
+	"!": "not", "&": "and", "|": "or", "~^": "xnor", "^": "xor",
 	">": "gtr", "<": "lss", ">=": "gte", "<=": "lse", "==": "equ",
 	"=": "set", "~": "mov",
 }
@@ -78,156 +77,162 @@ infixOperatorsList = {
 
 
 class FabricationError(Exception):
-	def __init__(self, error="Fabrication Failed!"):
-		self.message = f"Fabrication Error; {error}"
+	def __init__(self, error:str="Fabrication Failed!"):
+		self.message:str = f"Fabrication Error; {error}"
 		super().__init__(self.message)
 
 
 
-def toBin(value, signed=False):
-	if signed:
-		if not (-128 <= value < 128):
-			raise FabricationError(f"Immediate values must be signed 8-bit Integers [-128 → 127]: Encountered value of {value}")
-	
-		if value < 0:
-			# Handle two's complement for negative values
-			return format((1 << 8) + value, '08b')
-		else:
-			return format(value, '08b')
+def toBin(value:int) -> str:
+	absValue:int = abs(value) & 0x7F; #7 bits
+	if (value >= 0):
+		return "0" + str(bin(absValue)[2:]).zfill(7);
 	else:
-		if not (0 <= value < 256):
-			raise FabricationError(f"Register indices must be unsigned 8-bit Integers [0 → 255]: Encountered value of {value}")
+		places:list[int] = [
+			-128, 64, 32,
+			16, 8, 4, 2, 1
+		];
+		binRep:str = "1";
+		recreatedValue:int = places[0];
+		for place in places[1:]:
+			if ((recreatedValue+place) < value):
+				binRep += "1";
+				recreatedValue += place;
+			else:
+				binRep += "0";
 
-		return format(value, '08b')
-
-
-
-
-def SET(register, value):
-	return opcodes["set"] + register + toBin(int(value) + 128)
-
-
-
-def BRN(line, condition):
-	binaryLine = str(bin(line)[2:]).zfill(16)
-	halfA, halfB = int(binaryLine[:8], 2), int(binaryLine[8:], 2)
-	return (
-		opcodes["set"] + toBin(248) + toBin(halfA), #Set first JMP register to the first 8 bits.
-		opcodes["set"] + toBin(249) + toBin(halfB), #Set second JMP register to the final 8 bits.
-		opcodes["brn"] + toBin(condition) + toBin(0),
-	)
+		return binRep; 
 
 
 
-def convertAllToBin(operator, A, B):
-	width, height, blank = toBin(24), toBin(16), "0000"
-	zero, one, rT, rF, rX, rY, rCol, rOP = toBin(0), toBin(1), 250, 251, toBin(252), toBin(253), toBin(254), toBin(255)
+
+def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
+	BLANK:str = "00000000";
+	REG_RESULT:str = toBin(63);
+	A, B = toBin(preA), toBin(preB);
+
 	
 	match operator:
-		case "mov" | "and" | "or" | "lss" | "equ" | "gtr" | "add" | "sub" | "mul" | "div" | "rec" | "lne":
+		case "nop" | "__e" | "__f":
 			return (
-				opcodes[operator] + toBin(A) + toBin(B),
+				"0000" + opcodes[operator] + BLANK + BLANK,
+			);
+
+		case "set" | "mov" | "add" | "sub" | "mul" | "div" | "equ" | "grt" | "jmp" | "i_o" | "shf":
+			return (
+				immediates + "00" + opcodes[operator] + A + B,
 			)
 
-		case "set":
+		case "and":
 			return (
-				SET(toBin(A), B),
-			)
+				immediates + "01" + opcodes["mul"] + A + B,
+			);
 
-		case "not" | "abs":
+		case "or":
 			return (
-				opcodes[operator] + toBin(A) + blank,
+				immediates + "01" + opcodes["add"] + A + B,
+			);
+
+		case "not":
+			return (
+				immediates[0] + "000" + opcodes[operator] + A + BLANK,
 			)
 
 		case "sgn":
 			return (
-				opcodes["abs"] + toBin(A) + blank,
-				opcodes["div"] + toBin(A) + rOP,
-			)
+				immediates[0] + "011" + opcodes["not"] + A + BLANK,
+				immediates[0] + "000" + opcodes["div"] + A + REG_RESULT,
+			);
 
 		case "inv":
 			return (
-				opcodes["sub"] + toBin(rF) + toBin(A),
-			)
+				immediates[0] + "010" + opcodes["not"] + A,
+			);
 
 		case "mod":
 			return (
-				opcodes["div"] + toBin(A) + toBin(B),
-				opcodes["mul"] + rOP + toBin(B),
-				opcodes["sub"] + toBin(A) + rOP,
-			)
+				immediates + "10" + opcodes["div"] + A + B,
+			);
+
+		case "neq":
+			return (
+				immediates + "01" + opcodes["equ"] + A + B,
+			);
 
 		case "xor":
 			return (
-				opcodes["equ"] + toBin(A) + toBin(B),
-				opcodes["not"] + rOP + blank,
-			)
+				immediates + "10" + opcodes["equ"] + A + B,
+			);
+
+		case "xnor":
+			return (
+				immediates + "11" + opcodes["equ"] + A + B,
+			);
+
+		case "lss":
+			return (
+				immediates + "01" + opcodes["grt"] + A + B,
+			);
 
 		case "gte":
 			return (
-				opcodes["lss"] + toBin(A) + toBin(B),
-				opcodes["not"] + rOP + blank,
-			)
+				immediates + "10" + opcodes["grt"] + A + B,
+			);
 
 		case "lse":
 			return (
-				opcodes["gtr"] + toBin(A) + toBin(B),
-				opcodes["not"] + rOP + blank,
-			)
-
-		case "jmp":
-			return BRN(A, rT)
+				immediates + "11" + opcodes["grt"] + A + B,
+			);
 
 		case "brn":
-			return BRN(A, B)
-
-		case "ext":
-			return BRN(markers["_end"], rT)
-
-		case "col":
+			instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
 			return (
-				SET(rCol, A),
-			)
+				immediates + "10" + opcodes["brn"] + instrIdx,
+			);
 
-		case "ptr":
+		case "halt":
 			return (
-				opcodes["mov"] + toBin(A) + rX,
-				opcodes["mov"] + toBin(B) + rY,
-			)
+				"0000" + opcodes["ext"] + BLANK + BLANK,
+			);
 
-		case "pix":
+		case "clear":
 			return (
-				SET(rX, 1),
-				SET(rY, 1),
-				opcodes["rec"] + toBin(A) + toBin(B),
-			)
+				immediates[0] + "001" + opcodes["ext"] + A + BLANK,
+			);
 
-		case "clr":
+		case "ramwrite":
 			return (
-				SET(rX, width),
-				SET(rY, height),
-				opcodes["rec"] + zero + zero,
-			)
+				immediates + "10" + opcodes["ext"] + A + B,
+			);
+
+		case "ramread":
+			return (
+				immediates + "11" + opcodes["ext"] + A + B,
+			);
+
+
 
 		case _:
-			raise FabricationError(f"Unknown Command encountered: {operator} {a} {b}")
+			raise FabricationError(f"Unknown Command encountered: {operator} {A} {B}")
 
 
 
 def convertValues(A):
-	if A.startswith("r"):
-		return int(A.replace("r", ""))
-	elif A.startswith("#"):
-		return int(A.replace("#", ""))
-	elif A[0] == "c":
-		colourIndex = int(A[1:], 16)
-		if colourIndex > 15:
-			raise FabricationError(f"Colour indices cannot be out of range [0 → 15]: Encountered value {colourIndex}")
-		return colourIndex
-	elif A.startswith(":"):
-		return markers[A.replace(":", "")]
+	if A.startswith("r"): #Registers
+		return (int(A.replace("r", "")), False);
+	elif A.startswith("#x"): #Immediate values (Hex)
+		return (int(A.replace("#x",""), 16), True);
+	elif A.startswith("#b"): #Immediate values (Binary)
+		return (int(A.replace("#b",""), 2), True);
+	elif A.startswith("#"): #Immediate values (Denary)
+		return (int(A.replace("#d", "").replace("#","")), True);
+	elif A.startswith(":"): #Markers
+		return (markers[A.replace(":", "")], True);
 	else:
-		return str(A) #Ensure the fallback is a string.
+		try:
+			return (int(A), True);
+		except ValueError:
+			return (str(A), True); #Ensure the fallback is a string.
 
 
 
@@ -248,7 +253,7 @@ def convertLine(line):
 		A, operator, B = operands
 		operator = infixOperatorsList[operator]
 
-	elif operands[0] in ("ext", "lse", "gte", "inv", "sgn", "jmp", "col", "pix", "clr", "ptr", "xor", "mod"):
+	elif operands[0] in ("ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread", "xnor"):
 		#Chained or unusual operators
 		operator, A, B = operands
 
@@ -259,11 +264,14 @@ def convertLine(line):
 	else:
 		raise FabricationError(f"Unknown Command encountered: {operands}")
 
-	A = convertValues(A)
-	B = convertValues(B)
 
-	instructionList = convertAllToBin(operator, A, B)
-	hexList = [f"{int(instruction, 2):05X}" for instruction in instructionList]
+	A, immA = convertValues(A)
+	B, immB = convertValues(B)
+
+	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
+
+	instructionList = convertAllToBin(operator, immediates, A, B)
+	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList]
 	return hexList
 
 
@@ -362,12 +370,7 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 
 def replaceAliases(lines):
 	aliases = {
-		"rt": "r250",
-		"rf": "r251",
-		"rx": "r252",
-		"ry": "r253",
-		"rcol": "r254",
-		"rop": "r255",
+		"rop": "r63",
 	}
 	aliasReplaced = []
 
@@ -398,8 +401,9 @@ def replaceAliases(lines):
 
 
 if __name__ == "__main__":
-	filename = "testgraphics"
-	with open(f"cfab\\{filename}.cfab", "r") as CFABFile:
+
+	filename = "testloop"
+	with open(f"cfab/{filename}.cfab", "r") as CFABFile:
 		readlines = CFABFile.readlines()
 		partial_lines = [line.strip().lower() for line in readlines if not line.startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
@@ -420,22 +424,18 @@ if __name__ == "__main__":
 				 JMP :marker
 				EXT Always jumps to the final line of the instructions.
 				"""
-				markers[curLine.replace(":", "")] = [accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)+1
+				markers[curLine.replace(":", "")] = [accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)
 		markers["_end"] = len(aliasReplaced)-1
 
 
-		preInstructions = []
-		preInstructions.extend(convertAllToBin("set", 250, 1)) #rT | Always a value of 1, True.
-		preInstructions.extend(convertAllToBin("set", 251, 0)) #rF | Always a value of 0, False.
-		fabricated = [f"{int(instruction, 2):05X}" for instruction in preInstructions]
-		#print(aliasReplaced)
+		fabricated = []
 		for line in aliasReplaced:
 			if not line.startswith(":"):
 				#Convert lines using convertLine().
 				fabricated.extend(convertLine(line))
 
 		del macros, markers
-		del aliasReplaced, preInstructions
+		del aliasReplaced
 
 		
 		#Make the list of hex instructions into a set of bytes.
@@ -448,6 +448,6 @@ if __name__ == "__main__":
 		combinedBytes = bytes.fromhex(combinedHex)
 
 
-	with open(f"data\\{filename}.dat", "wb") as outFile:
+	with open(f"data/{filename}.dat", "wb") as outFile:
 		#Write to a file.
 		outFile.write(combinedBytes)

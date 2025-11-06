@@ -66,7 +66,6 @@ bool loadInstructions(const std::string& filePath, std::vector<unsigned int>* in
 			(static_cast<unsigned int>(byteData[byteIndex + 2u]))
 		};
 
-		std::cout << std::hex << instruction << std::endl;
 		instructionData->push_back(instruction);
 	}
 
