@@ -1,0 +1,27 @@
+$previous @ r0
+$current @ r1
+$iteration @ r2
+
+
+//Setup
+$previous = #1
+$current = #1
+
+COUT $previous
+COUT $current
+
+
+//Fibonacci sequence
+:loop
+$previous + $current
+$current ~ $previous
+rOP ~ $current
+
+//Show current value.
+COUT $current
+
+//Loop if not exceeding maximum iterations
+$iteration ++
+if ($iteration < #8) then-goto :loop
+
+

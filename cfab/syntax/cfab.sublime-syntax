@@ -9,12 +9,10 @@ contexts:
 
 
 
-    #QOL features
     #Comments
     - match: '//'
       scope: punctuation.definition.comment
       push: line_comment
-
 
     #Markers
     - match: ':(?i)[a-z0-9]+'
@@ -24,9 +22,35 @@ contexts:
     - match: '(?i)\$[a-z0-9]+'
       scope: variable.parameter
 
+    #Macros
     - match: '(?i)%[a-z0-9]+'
       scope: variable.function
 
+
+
+    #Branch alternative notation
+    - match: '(?i)\bif(\s?)(\(?)\b'
+      scope: keyword.control
+      push:
+        - meta_scope: meta.branch.alt
+        - include: main
+        - match: '(?i)\b(\)?)then(-goto)?\b'
+          scope: keyword.control
+          pop: true
+
+    #Macro definition notation
+    - match: '(?i)\bdefine\b'
+      scope: keyword.control
+      push:
+        - meta_scope: meta.macro.definition
+        - include: main
+        - match: '(?i)\bas\b'
+          scope: keyword.control
+          set:
+            - include: main
+            - match: '(?i)\bend\b'
+              scope: keyword.control
+              pop: true
 
 
     #Opcode prefix
@@ -34,11 +58,11 @@ contexts:
       scope: keyword.control
 
     #Inline
-    - match: '(=|~|&|\||!|\^|~\^|==|!=|<|>|<=|>=|\+|-|\*|/|%|@)'
+    - match: '(=|~|&|\||!|\^|~\^|==|!=|<|>|<=|>=|\+|-|\*|/|%|@|\+\+|--)'
       scope: keyword.operator
 
     #Other prefix
-    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|if|ramread|ramwrite|halt|def|end)\b'
+    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|ramread|ramwrite|halt|sleep|wait|input|output|cout)\b'
       scope: keyword.control
 
 

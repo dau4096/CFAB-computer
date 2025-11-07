@@ -1,11 +1,12 @@
 $testName @ r1
 $testName / r2
 
-def %testMacro $A $B
+define %testMacro $A $B as
 $A + $B
 end
 
 %testMacro r1 r3
+//^ would be replaced by "r1 + r3"
 
 r2 / r3
 

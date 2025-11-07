@@ -73,7 +73,7 @@ infixOperatorsList = {
 	"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
 	"!": "not", "&": "and", "|": "or", "~^": "xnor", "^": "xor",
 	">": "gtr", "<": "lss", ">=": "gte", "<=": "lse", "==": "equ",
-	"=": "set", "~": "mov",
+	"=": "set", "~": "mov", "++": "inc", "--": "dec"
 }
 
 
@@ -111,7 +111,13 @@ def toBin(value:int) -> str:
 def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 	BLANK:str = "00000000";
 	REG_RESULT:str = toBin(63);
-	A, B = toBin(preA), toBin(preB);
+	try:
+		A, B = toBin(preA), toBin(preB);
+	except ValueError as e:
+		print(f"Cannot convert value: {e}")
+		return ("",);
+	except TypeError:
+		pass;
 
 	
 	match operator:
@@ -140,7 +146,19 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 				immediates[0] + "000" + opcodes[operator] + A + BLANK,
 			)
 
-		case "sgn":
+		case "inc": #Increment
+			return (
+				immediates[0] + "100" + opcodes["add"] + A + toBin(1),
+				"0000" + opcodes["mov"] + REG_RESULT + A,
+			);
+
+		case "dec": #Decrement
+			return (
+				immediates[0] + "100" + opcodes["sub"] + A + toBin(1),
+				"0000" + opcodes["mov"] + REG_RESULT + A,
+			);
+
+		case "sgn": #Sign
 			return (
 				immediates[0] + "011" + opcodes["not"] + A + BLANK,
 				immediates[0] + "000" + opcodes["div"] + A + REG_RESULT,
@@ -186,11 +204,20 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 				immediates + "11" + opcodes["grt"] + A + B,
 			);
 
-		case "brn" | "if":
+		case "brn":
 			instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
 			return (
 				immediates + "10" + opcodes["brn"] + instrIdx,
 			);
+
+		case "if":
+			condition:str = convertLine(preA, makeHex=False)[0];
+			instrIdx:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
+			return (
+				condition,
+				immediates + "10" + opcodes["brn"] + instrIdx,
+			);
+
 
 		case "halt":
 			return (
@@ -269,7 +296,7 @@ def convertValues(A):
 
 
 
-def convertLine(line):
+def convertLine(line, makeHex:bool=True):
 	operands = line.split(" ")
 	operands = [operand.strip() for operand in operands if operand != ""]
 	if len(operands) == 2:
@@ -286,13 +313,20 @@ def convertLine(line):
 		A, operator, B = operands
 		operator = infixOperatorsList[operator]
 
+	elif (operands[0] == "if"):
+		operator = "if";
+		A = " ".join(operands[1:-2]).replace("(", "").replace(")","")
+		B = operands[-1]
+
 	elif operands[0] in (
 		"ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread",
-		"xnor", "halt", "if", "sleep", "wait",
-		"input", "output", "cout"
+		"xnor", "halt", "sleep", "wait",
+		"input", "output", "cout", "inc", "dec"
 	):
 		#Chained or unusual operators
 		operator, A, B = operands
+
+
 
 	elif operands[0] in ("!",):
 		operator, A, B = operands
@@ -301,14 +335,16 @@ def convertLine(line):
 	else:
 		raise FabricationError(f"Unknown Command encountered: {operands}")
 
-
-	A, immA = convertValues(A)
+	if (operator != "if"):
+		A, immA = convertValues(A)
+	else:
+		immA = True;
 	B, immB = convertValues(B)
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
 	instructionList = convertAllToBin(operator, immediates, A, B)
-	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList]
+	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
 	return hexList
 
 
@@ -329,9 +365,9 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 		curLine = lines[lineNum]
 
 		#Macro has been defined.
-		if curLine.startswith("def"):
+		if curLine.startswith("define"):
 			macroData = curLine.split(" ")
-			if len(macroData) < 2:
+			if len(macroData) < 3: #define %name ($args)* as
 				raise FabricationError(f"Macro definition missing name and/or parameters: {curLine}")
 
 			macroName = macroData[1].replace("%", "")
@@ -412,7 +448,6 @@ def replaceAliases(lines):
 	aliasReplaced = []
 
 	for lineNum, curLine in enumerate(lines):
-		#print(curLine)
 		"""
 		Define aliasing for register names like so;
 		 varName  @ r1
@@ -429,8 +464,7 @@ def replaceAliases(lines):
 		for alias, reg in aliases.items():
 			fixedLine = fixedLine.replace(f"${alias}", reg).replace(alias, reg)
 
-		if fixedLine not in aliasReplaced:
-			aliasReplaced.append(fixedLine)
+		aliasReplaced.append(fixedLine)
 
 	return aliasReplaced
 
@@ -439,7 +473,7 @@ def replaceAliases(lines):
 
 if __name__ == "__main__":
 
-	inFileName = "testloop";
+	inFileName = "fibonacci";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
@@ -495,7 +529,7 @@ if __name__ == "__main__":
 
 	combinedBytes = bytes.fromhex(combinedHex)
 
-	print(f"Fabrication complete.\nWrote bytes to data/{outFileName}.dat");
+	print(f"Fabrication complete.\nWrote {len(combinedBytes)} bytes [{len(combinedBytes)//3} instructions] to data/{outFileName}.dat");
 
 	with open(f"data/{outFileName}.dat", "wb") as outFile:
 		#Write to a file.
