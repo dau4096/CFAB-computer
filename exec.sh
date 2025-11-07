@@ -8,4 +8,4 @@ else
 	exit -1
 fi
 
-./app data/$1.dat
+./app -f data/$1.dat
