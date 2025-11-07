@@ -108,7 +108,7 @@ def toBin(value:int) -> str:
 
 
 
-def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
+def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str=""):
 	BLANK:str = "00000000";
 	REG_RESULT:str = toBin(63);
 	try:
@@ -270,7 +270,22 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int):
 				immediates[0] + "010" + opcodes["i_o"] + A + BLANK,
 			);
 
+		case "print":
+			charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
+			text:str = ln.split(' "')[1].replace('"','').replace("\\n", "$");
 
+			instructions:list[str] = []
+			for char in text:
+				if (char == "$"):
+					#Newlines
+					charIDX = len(charSet);
+				else:
+					charIDX:int = charSet.index(char);
+					if (charIDX < 0): continue;
+
+				instructions.append("1011" + opcodes["i_o"] + toBin(charIDX) + BLANK);
+
+			return tuple(instructions);
 
 		case _:
 			raise FabricationError(f"Unknown Command encountered: {operator} {A} {B}")
@@ -297,7 +312,7 @@ def convertValues(A):
 
 
 def convertLine(line, makeHex:bool=True):
-	operands = line.split(" ")
+	operands = line.lower().split(" ")
 	operands = [operand.strip() for operand in operands if operand != ""]
 	if len(operands) == 2:
 		operands.append("0")
@@ -317,6 +332,11 @@ def convertLine(line, makeHex:bool=True):
 		operator = "if";
 		A = " ".join(operands[1:-2]).replace("(", "").replace(")","")
 		B = operands[-1]
+
+	elif (operands[0] == "print"):
+		operator = "print";
+		A = "0";
+		B = "0";
 
 	elif operands[0] in (
 		"ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread",
@@ -343,7 +363,7 @@ def convertLine(line, makeHex:bool=True):
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
-	instructionList = convertAllToBin(operator, immediates, A, B)
+	instructionList = convertAllToBin(operator, immediates, A, B, ln=line)
 	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
 	return hexList
 
@@ -473,7 +493,7 @@ def replaceAliases(lines):
 
 if __name__ == "__main__":
 
-	inFileName = "fibonacci";
+	inFileName = "cout";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
@@ -487,7 +507,7 @@ if __name__ == "__main__":
 
 	with open(f"cfab/{inFileName}.cfab", "r") as CFABFile:
 		readlines = CFABFile.readlines()
-		partial_lines = [line.strip().lower() for line in readlines if not line.startswith("//")]
+		partial_lines = [line.strip() for line in readlines if not line.startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
 
 

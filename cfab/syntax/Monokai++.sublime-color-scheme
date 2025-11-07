@@ -1,0 +1,24 @@
+// Documentation at https://www.sublimetext.com/docs/color_schemes.html
+{
+	"variables":
+	{
+	},
+	"globals":
+	{
+	},
+	"rules":
+	[
+        {
+            "scope": "variable.other",
+            "foreground": "#24D074"
+        },
+        {
+            "scope": "variable.parameter",
+            "foreground": "#FD971F"
+        },
+        {
+        	"scope": "variable.constant",
+        	"foreground": "#49E0FD"
+        }
+	]
+}

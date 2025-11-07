@@ -34,6 +34,7 @@ inline uint16_t get16Bit(int8_t* Aptr, int8_t* Bptr) {
 }
 
 
+bool needsNewLN;
 bool executeInstruction(const unsigned int instruction, int8_t* result, bool silenceDebug=false) {
 /*
 FB_ --> 2 flag-bits in instr; values 0-3.
@@ -58,7 +59,7 @@ Ia | Ib | F B | I N S T R |
  EQU | 1000 |  8  | FB0, A==B. FB1, A!=B. (!= is equivalent to XOR.) FB2, bitwise XOR. FB3, bitwise XNOR.
  GRT | 1001 |  9  | FB0, A>B. FB1, A<B. FB2, A>=B. FB3 A<=B. (bit 2 changes inclusivity, bit 1 changes func.)
  BRN | 1010 |  A  | FB0, Branch to (A<<8)|B if rOP!=0. FB1, unconditional branch to (A<<8)|B. FB2, same as FB0 but rOP==0.
- I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1, same but outputs immediate/register 16b. FB2, prints some value to console.
+ I_O | 1011 |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1, same but outputs immediate/register 16b. FB2, prints some value to console. FB3, prints ASCII char by index.
  SHF | 1100 |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits.
  EXT | 1101 |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.]
  SLP | 1110 |  E  | Sleep; FB0, sleep for (A<<8)|B milliseconds. FB1, sleeps until user input (should be paired with I_O call after)
@@ -248,20 +249,43 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case I_O: { //Get input/Set output
-			if (flagBits == 2u) { //std::cout call, effectively.
-				int8_t operandA = static_cast<int8_t>((instruction >> 8u) & BITS_8);
-				uint8_t registerIndexA = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandA), 0u, REG_COUNT-1u));
-				std::cout << "\033[1;33mr" << std::to_string(registerIndexA) << ": " << std::to_string(*Aptr) << "\033[0;m" << std::endl;
+			switch (flagBits) {
+				case 0u: { //Input
+					if (Aimmediate || Bimmediate) {break; /* Do not allow. */}
+					//Get inputs and write to registers A and B.
+					(*Aptr) = static_cast<int8_t>((inputBits >> 8u) & BITS_8);
+					(*Bptr) = static_cast<int8_t>((inputBits >> 0u) & BITS_8);
+					break;
+				}
+				case 1u: { //Output
+					//Write values of A and B to the output bits.
+					//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
+					outputBits = get16Bit(Aptr, Bptr);
+					break;
+				}
+				case 2u: { //std::cout call, effectively.
+					int8_t operandA = static_cast<int8_t>((instruction >> 8u) & BITS_8);
+					uint8_t registerIndexA = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandA), 0u, REG_COUNT-1u));
+					std::cout << "\033[1;33mr" << std::to_string(registerIndexA) << ": " << std::to_string(*Aptr) << "\033[0;m" << std::endl;
+					break;
+				}
+				case 3u: { //Prints char from given char-set.
+					const std::string charSet = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
+					uint8_t index = static_cast<uint8_t>(*Aptr);
+					if (index < charSet.length()) {
+						std::cout << charSet.at(index) << std::flush;
+						needsNewLN = true;
+					} else if (index == charSet.length()) {
+						//Newline char
+						std::cout << std::endl;
+						needsNewLN = false;
+					}
+				}
+			}
+			if (flagBits == 2u) { 
 
-			} else if (accessBit(flagBits, 0u)) { //Output
-				//Write values of A and B to the output bits.
-				//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
-				outputBits = get16Bit(Aptr, Bptr);
-			} else { //Input
-				if (Aimmediate || Bimmediate) {break; /* Do not allow. */}
-				//Get inputs and write to registers A and B.
-				(*Aptr) = static_cast<int8_t>((inputBits >> 8u) & BITS_8);
-				(*Bptr) = static_cast<int8_t>((inputBits >> 0u) & BITS_8);
+			} else if (accessBit(flagBits, 0u)) { 
+			} else { 
 			}
 			break;
 		}
@@ -342,6 +366,7 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 	}
 
 	int8_t result;
+	needsNewLN = false;
 	while (programCounter < instructionData.size()) {
 		unsigned int instruction = instructionData[programCounter];
 		programCounter++;
@@ -357,6 +382,7 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 		if (!run) {break;}
 	}
 	run = false;
+	if (needsNewLN) {std::cout << std::endl;}
 
 
 	if (checkSpeed) {
