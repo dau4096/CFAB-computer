@@ -1,0 +1,37 @@
+//Vars
+$iter @ r0
+$saidEither @ r1
+$numLoops @ r2
+
+
+$numLoops = #32
+$iter = #1
+
+:loop
+//Tracks if either was output.
+$saidEither = #0
+
+//Every 3, say "Fizz"
+//When condition evals to #0, prints. Otherwise skips
+if ($iter % #3) then-goto :after3
+PRINT "Fizz"
+$saidEither = #1
+:after3
+
+//Every 5, say "Buzz"
+//When condition evals to #0, prints. Otherwise skips
+if ($iter % #5) then-goto :after5
+PRINT "Buzz"
+$saidEither = #1
+:after5
+
+//Otherwise say the number.
+//When condition evals to #0, prints. Otherwise skips
+if ($saidEither == #1) then-goto :afterNumber
+COUT $iter
+:afterNumber
+
+PRINT "\n"
+
+$iter ++
+if ($iter < $numLoops) then-goto :loop

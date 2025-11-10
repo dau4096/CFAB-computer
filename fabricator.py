@@ -60,6 +60,7 @@ DEF/END	 |	def %macroName {args}; ...; end 	|	Used to define a macro. Contents o
 """
 
 import sys;
+import re as regex;
 
 
 opcodes = {
@@ -73,9 +74,10 @@ infixOperatorsList = {
 	"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
 	"!": "not", "&": "and", "|": "or", "~^": "xnor", "^": "xor",
 	">": "gtr", "<": "lss", ">=": "gte", "<=": "lse", "==": "equ",
-	"=": "set", "~": "mov", "++": "inc", "--": "dec"
+	"!=": "neq", "=": "set", "~": "mov", "++": "inc", "--": "dec"
 }
 
+charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
 
 
 class FabricationError(Exception):
@@ -111,8 +113,16 @@ def toBin(value:int) -> str:
 def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str=""):
 	BLANK:str = "00000000";
 	REG_RESULT:str = toBin(63);
+
 	try:
-		A, B = toBin(preA), toBin(preB);
+		A = toBin(preA);
+	except ValueError as e:
+		print(f"Cannot convert value: {e}")
+		return ("",);
+	except TypeError:
+		pass;
+	try:
+		B = toBin(preB);
 	except ValueError as e:
 		print(f"Cannot convert value: {e}")
 		return ("",);
@@ -126,7 +136,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes[operator] + BLANK + BLANK,
 			);
 
-		case "set" | "mov" | "add" | "sub" | "mul" | "div" | "equ" | "grt" | "jmp" | "i_o" | "shf":
+		case "set" | "mov" | "add" | "sub" | "mul" | "div" | "equ" | "grt" | "i_o" | "shf":
 			return (
 				immediates + "00" + opcodes[operator] + A + B,
 			)
@@ -171,7 +181,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 		case "mod":
 			return (
-				immediates + "10" + opcodes["div"] + A + B,
+				immediates + "01" + opcodes["div"] + A + B,
 			);
 
 		case "neq":
@@ -205,14 +215,29 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 			);
 
 		case "brn":
-			instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
+			try:
+				instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError:
+				instrIdx = preA;
 			return (
 				immediates + "10" + opcodes["brn"] + instrIdx,
 			);
 
+		case "jmp":
+			try:
+				instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError:
+				instrIdx = preA;
+			return (
+				immediates + "00" + opcodes["brn"] + instrIdx,
+			);
+
 		case "if":
 			condition:str = convertLine(preA, makeHex=False)[0];
-			instrIdx:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
+			try:
+				instrIdx:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError:
+				instrIdx = preB;
 			return (
 				condition,
 				immediates + "10" + opcodes["brn"] + instrIdx,
@@ -266,12 +291,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 		case "cout":
 			#Writes to console
-			return (
-				immediates[0] + "010" + opcodes["i_o"] + A + BLANK,
-			);
+			instructions:list[str] = [immediates[0] + "010" + opcodes["i_o"] + A + BLANK,];
+			if ((type(preB) == str) and (("$" in preB) or ("\\n" in preB))):
+				instructions.append("1011" + opcodes["i_o"] + toBin(len(charSet)) + BLANK); #COUT << NEWLINE instruction
+
+			return tuple(instructions);
 
 		case "print":
-			charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
 			text:str = ln.split(' "')[1].replace('"','').replace("\\n", "$");
 
 			instructions:list[str] = []
@@ -292,26 +318,26 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 
 
-def convertValues(A):
-	if A.startswith("r"): #Registers
-		return (int(A.replace("r", "")), False);
-	elif A.startswith("#x"): #Immediate values (Hex)
-		return (int(A.replace("#x",""), 16), True);
-	elif A.startswith("#b"): #Immediate values (Binary)
-		return (int(A.replace("#b",""), 2), True);
-	elif A.startswith("#"): #Immediate values (Denary)
-		return (int(A.replace("#d", "").replace("#","")), True);
-	elif A.startswith(":"): #Markers
-		return (markers[A.replace(":", "")], True);
+def convertValues(V, convertMarkers:bool=True):
+	if V.startswith("r"): #Registers
+		return (int(V.replace("r", "")), False);
+	elif V.startswith("#x"): #Immediate values (Hex)
+		return (int(V.replace("#x",""), 16), True);
+	elif V.startswith("#b"): #Immediate values (Binary)
+		return (int(V.replace("#b",""), 2), True);
+	elif V.startswith("#"): #Immediate values (Denary)
+		return (int(V.replace("#d", "").replace("#","")), True);
+	elif V.startswith(":") and convertMarkers: #Markers
+		return (markers[V.replace(":", "").upper()], True);
 	else:
 		try:
-			return (int(A), True);
+			return (int(V), True);
 		except ValueError:
-			return (str(A), True); #Ensure the fallback is a string.
+			return (str(V), True); #Ensure the fallback is a string.
 
 
 
-def convertLine(line, makeHex:bool=True):
+def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 	operands = line.lower().split(" ")
 	operands = [operand.strip() for operand in operands if operand != ""]
 	if len(operands) == 2:
@@ -356,15 +382,16 @@ def convertLine(line, makeHex:bool=True):
 		raise FabricationError(f"Unknown Command encountered: {operands}")
 
 	if (operator != "if"):
-		A, immA = convertValues(A)
+		A, immA = convertValues(A, convertMarkers)
 	else:
 		immA = True;
-	B, immB = convertValues(B)
+	B, immB = convertValues(B, convertMarkers)
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
 	instructionList = convertAllToBin(operator, immediates, A, B, ln=line)
 	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
+
 	return hexList
 
 
@@ -463,7 +490,7 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 
 def replaceAliases(lines):
 	aliases = {
-		"rop": "r63",
+		"rop": "r63"
 	}
 	aliasReplaced = []
 
@@ -481,8 +508,12 @@ def replaceAliases(lines):
 				continue
 
 		fixedLine = curLine
-		for alias, reg in aliases.items():
-			fixedLine = fixedLine.replace(f"${alias}", reg).replace(alias, reg)
+		for alias, register in aliases.items():
+			fixedLine = regex.sub(
+				rf"(?i)(\$?){alias}",
+				register,
+				fixedLine
+			);
 
 		aliasReplaced.append(fixedLine)
 
@@ -493,19 +524,19 @@ def replaceAliases(lines):
 
 if __name__ == "__main__":
 
-	inFileName = "cout";
+	inFileName = "fizzbuzz.cfab";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
 			outFileName = sys.argv[2];
 		else:
-			outFileName = inFileName;
+			outFileName = inFileName.replace(".cfab", ".dat");
 	else:
-		outFileName = inFileName;
+		outFileName = inFileName.replace(".cfab", ".dat");
 
-	print(f"Reading: cfab/{inFileName}.cfab");
+	print(f"Reading: cfab/{inFileName}");
 
-	with open(f"cfab/{inFileName}.cfab", "r") as CFABFile:
+	with open(f"cfab/{inFileName}", "r") as CFABFile:
 		readlines = CFABFile.readlines()
 		partial_lines = [line.strip() for line in readlines if not line.startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
@@ -516,25 +547,38 @@ if __name__ == "__main__":
 	aliasReplaced = replaceAliases(macrosReplaced)
 	del macrosReplaced
 
+	expandedTMP = []
+	for line in aliasReplaced:
+		if not line.startswith(":"):
+			#Convert lines using convertLine().
+			expandedTMP.extend(convertLine(line, False, False)) #1 line of CFAB can correspond to multiple instructions
+		else:
+			expandedTMP.extend([line,])
 
-	for curLine in aliasReplaced:
+	for curLine in expandedTMP:
 		if curLine.startswith(":"):
 			"""
 			Process markers, which are written like so;
 			 :marker
-			You may jump back to these using BRN, JMP or EXT commands, like so;
+			You may jump back to these using BRN, JMP or IF commands, like so;
 			 JMP :marker
-			EXT Always jumps to the final line of the instructions.
 			"""
-			markers[curLine.replace(":", "")] = [accLine for accLine in aliasReplaced if ((not (accLine.startswith(":") or accLine == "" or accLine.startswith("//"))) or accLine == curLine)].index(curLine)
-	markers["_end"] = len(aliasReplaced)-1
+			markers[curLine.replace(":", "").split(" ")[0].upper()] = [
+				accLine for accLine in expandedTMP if (
+					(not (
+						accLine.startswith(":") or
+						accLine == "" or
+						accLine.startswith("//")
+					)
+				) or accLine == curLine)
+			].index(curLine)
 
 
 	fabricated = []
 	for line in aliasReplaced:
 		if not line.startswith(":"):
 			#Convert lines using convertLine().
-			fabricated.extend(convertLine(line))
+			fabricated.extend(convertLine(line)) #1 line of CFAB can correspond to multiple instructions
 
 	del macros, markers
 	del aliasReplaced
@@ -549,8 +593,8 @@ if __name__ == "__main__":
 
 	combinedBytes = bytes.fromhex(combinedHex)
 
-	print(f"Fabrication complete.\nWrote {len(combinedBytes)} bytes [{len(combinedBytes)//3} instructions] to data/{outFileName}.dat");
+	print(f"Fabrication complete.\nWrote {len(combinedBytes)} bytes [{len(combinedBytes)//3} instructions] to data/{outFileName}");
 
-	with open(f"data/{outFileName}.dat", "wb") as outFile:
+	with open(f"data/{outFileName}", "wb") as outFile:
 		#Write to a file.
 		outFile.write(combinedBytes)

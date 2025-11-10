@@ -41,7 +41,7 @@ void handleArguments(int argc, char* argv[]) {
 
     verbose = result.count("verbose");
     if (result.count("file")) {
-    	filePath = result["file"].as<std::string>();
+    	filePath = "data/" + result["file"].as<std::string>();
     }
     if (result.count("peek")) {
     	enablePeek = true;

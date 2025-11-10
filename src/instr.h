@@ -240,8 +240,8 @@ Ia | Ib | F B | I N S T R |
 			bool conditional = accessBit(flagBits, 1u);
 			if (
 				!conditional || //JMP, unconditional
-				(registers[REG_RESULT] && !BRNif0) || //BRN-If-1
-				(!registers[REG_RESULT] && BRNif0)    //BRN-If-0.
+				((registers[REG_RESULT]!=0) && !BRNif0) || //BRN-If-1
+				(!(registers[REG_RESULT]!=0) && BRNif0)    //BRN-If-0.
 			) {
 				programCounter = get16Bit(Aptr, Bptr);
 			}
@@ -266,7 +266,7 @@ Ia | Ib | F B | I N S T R |
 				case 2u: { //std::cout call, effectively.
 					int8_t operandA = static_cast<int8_t>((instruction >> 8u) & BITS_8);
 					uint8_t registerIndexA = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandA), 0u, REG_COUNT-1u));
-					std::cout << "\033[1;33mr" << std::to_string(registerIndexA) << ": " << std::to_string(*Aptr) << "\033[0;m" << std::endl;
+					std::cout << std::to_string(*Aptr) << std::flush;
 					break;
 				}
 				case 3u: { //Prints char from given char-set.

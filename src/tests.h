@@ -184,6 +184,21 @@ void testDIV() {
 }
 
 
+void testMOD() {
+	//A / B
+	registers[0u] = 12; //SET r0 to 12
+	registers[1u] = 7; //SET r1 to 7
+	testInstructions = {
+		0x160001u, //MOD r0 by r1
+	};
+	CFAB::runInstructionSet(testInstructions);
+	assertOrThrow(
+		registers[REG_RESULT] == 5,
+		"Modulo result was not 5 [12%7]"
+	);
+}
+
+
 void testINV() {
 	//-A
 	registers[0u] = 8; //SET r0 to 8
@@ -438,7 +453,7 @@ const std::vector<std::function<void()>> tests = {
 
 	//Maths
 	testADD, testSUB, testMUL, testDIV,
-	testINV, testABS,
+	testMOD, testINV, testABS,
 	testSHF_L, testSHF_R,
 
 	//Logic

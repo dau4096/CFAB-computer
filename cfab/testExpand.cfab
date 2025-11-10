@@ -1,0 +1,4 @@
+
+JMP :test
+PRINT "Hi"
+:test
