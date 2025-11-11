@@ -2,35 +2,29 @@
 # CFAB-Interpreter
 _Simple mock-up 16 instruction assembly language with interpreter._
 
-### General Information;
-- All instructions use register locations for A and B, unless it is SET or COL.
-- All values stored in registers are -128 → 128 (signed 8 bit int)
-- There are 256 registers to use. Screen & frameBuffer are 24x16.
+## General Information;
+- All instructions use either register locations or immediates for A and B, unless it is SET or MOV.
+- All values stored in registers are -128 → 127 (signed 8 bit int)
+- There are 64 registers to use.
 - CFAB Files have a 65,536 instruction limit (past that value, JMP, BRN and EXT stop functioning correctly.)
-- 1 CFAB Command ≠ 1 instruction
+- 1 CFAB Command ≠ 1 instruction. Some lines may "expand" and become multiple, unless explicitly listed in the instruction set.
+- Capitalisation of instruction/command words is optional. `SET` == `set` == `sET` == etc...
 
-### Important Registers;
-| Index | Alias | Description |
-| :---: | :---: | --- |
-| `r0 & r1` | `N/A` | Generally used by some of the data-processing functions,not reccomended to be assigned by user for risk of being overwritten.
-| `r248 r249` | `N/A` | Used in combination as 2 unsigned 8-bit integers, to become a singular unsigned 16-bit integer instruction to jump to.
-| `r250 ` | `rT` | A register that is ALWAYS True.
-| `r251 ` | `rF` | A register that is ALWAYS False.
-| `r252 ` | `rX` | Pointer's X coordinate.
-| `r253 ` | `rY` | Pointer's Y coordinate.
-| `r254 ` | `rCol` | Pointer's colour index.
-| `r255 ` | `rOP` | Output from previous instruction.
+## Important Registers;
+- __Result Register [rOP/r63]:__ Contains result of previous operation. Reccomended not to store values here as it will usually be overwritten.
 
-### Data-processing Commands;
+## Data-processing Commands;
 | _Name_ | _Shorthand_ | _Description_ |
-| :---: | :---: | --- |
-| `SET` | `A = #B` | Sets a register, A, to the immediate signed 8-bit integer, B. |
-| `MOV` | `A ~ B` | Moves the contents of register A to register B. |
-| `AND` | `A & B` | Logical A and B. |
-| `OR ` | `A | B` | Logical A or B. |
+| :---: | :---: | :--- |
+| `SET` | `A = #B` | Sets a register, A, to the immediate signed 8-bit integer, B. If B is a register, copies contents. |
+| `MOV` | `A ~ B` | Moves the contents of register A to register B. A and B cannot be immediate. |
+| `AND` | `A & B` | Bitwise A and B. |
+| `OR ` | `A \| B` | Bitwise A or B. |
 | `NOT` | `! A` | Logical not A. |
-| `XOR` | `A ^ B` | Logical A xor B. |
+| `XOR` | `A ^ B` | Bitwise A xor B. |
+| `XNOR` | `A ~^ B` | Bitwise A xnor B. |
 | `EQU` | `A == B` | If A is equal to B. |
+| `NEQ` | `A != B` | If A is not equal to B. |
 | `GRT` | `A > B` | If A is greater than B. |
 | `LSS` | `A < B` | If A is less than B. |
 | `GTE` | `A >= B` | If A is greater than OR equal to B. |
@@ -40,56 +34,50 @@ _Simple mock-up 16 instruction assembly language with interpreter._
 | `SUB` | `A - B` | Subtracts B from A. |
 | `MUL` | `A * B` | Multiplies A and B. |
 | `DIV` | `A / B` | Divides A by B (rounds DOWN) |
-| `MOD` | `A % B` | Finds A Modulo B. |
+| `MOD` | `A % B` | Finds A mod B. (Residue of A / B) |
 | `ABS` | `abs A` | Absolute value of A. |
 | `SGN` | `sgn A` | Sign of A. |
 | `BRN` | `brn :marker A` | Branches if A is true, to the line :marker is on. |
 | `JMP` | `jmp :marker` | Jumps unconditionally to :marker. |
-| `EXT` | `ext` | Immediately` exits the processing. |
+| `HALT` | `halt` | Immediately` exits the processing. |
+
+## QOL/Advanced commands;
+| _Name_ | _Notation_ | _Description_ |
+| :---: | :---: | :--- |
+| `BRANCH` | `IF (condition) then(-goto)` | BRN but with more friendly formatting. Optional usage of "then" or "then-goto". |
+| `MACRO` | `DEFINE %macroName $arg0 $arg1 .. $argN as ... end` | Defines a macro, which when called such as `%macroName r0 r1 .. rN` will replace said line and expand into the ... lines. |
+| `MARKER` | `:markerName` | Marker used for BRN/JMP/IF()THEN. Will always jump to the instruction following the marker. |
 
 
-### Helper Commands;
-| _Name_ | _Shorthand_ | _Description_ |
-| :---: | :---: | --- |
-| `N/A` | `:marker` | Creates a marker to jump to, at the current line. Jumping to this will execute the following line, onward. |
-| `DEF` | `def %macroName {args}` | Creates a macro with name macroName, taking in {args} (can be aliases). |
-| `END` | `end` | Ends the definition of a macro. |
-| `N/A` | `%macroName {args}` | Calls %macroName (all functions within macroName get added here. Result is the end state of %macroName) |
+## The Instruction-set;
+Flag-bits are not currently definable in files; usually will be present as alternate names. For instance, SHF+FB1 is `RSH` in CFab.
+Default FB0 commands can be referenced by directly writing [Mneumonic] [operand A] [Operand B]
+| _Mneumonic_ | _Hex_ | _Function_ |
+| :---: | :---: | :--- |
+| `NOP` |  0  | Blank, No-Op instruction |
+| `SET` |  1  | Sets a register to some value. If 2nd value is reg, copy data. |
+| `MOV` |  2  | Moves contents of 1 register to another, resets source register to 0. |
+| `ADD` |  3  | FB0, Adds 2 values. Can also be used as logical OR. FB1, bitwise OR. |
+| `SUB` |  4  | Subtracts 2 values. |
+| `MUL` |  5  | FB0, Multiplies 2 values. Can also be used as logical AND. FB1, bitwise AND. |
+| `DIV` |  6  | Int-Divides 2 values. If denominator is 0, result is 0. (later -> div0 flag?) |
+| `NOT` |  7  | FB0, logical NOT. FB1, bitwise NOT. FB2, invert number. FB3, abs(number) |
+| `EQU` |  8  | FB0, A==B. FB1, A!=B. (!= is equivalent to XOR.) FB2, bitwise XOR. FB3, bitwise XNOR. |
+| `GRT` |  9  | FB0, A>B. FB1, A<B. FB2, A>=B. FB3 A<=B. (bit 2 changes inclusivity, bit 1 changes func .) |
+| `BRN` |  A  | FB0, Branch to (A<<8)|B if rOP!=0. FB1, unconditional branch to (A<<8)|B. FB2, same as FB0 but rOP==0. |
+| `I_O` |  B  | FB0, Gets input 16, writing 8 to A and 8 to B [A/B MUST BE REGISTERS]. FB1, same but outputs immediate/register 16b. FB2, prints some value to console. FB3, prints ASCII char by index. |
+| `SHF` |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits. |
+| `EXT` |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.] |
+| `SLP` |  E  | Sleep; FB0, sleep for (A<<8)|B milliseconds. FB1, sleeps until user input (should be paired with I_O call after) |
+| `__F` |  F  | Presently Unused. |
 
 
-### Graphical Commands;
-| _Name_ | _Shorthand_ | _Description_ |
-| :---: | :---: | --- |
-| `COL` | `col cB` | Sets the current colour to colour index B (shown as c0, c1 etc.). |
-| `PTR` | `ptr A B` | Moves the pointer to the position given (X:A, Y:B). |
-| `REC` | `rec A B` | Draws a rectangle at TL position (A, B) with BR position PTR. |
-| `PIX` | `pix A B` | Draws a pixel at the position (A, B). |
-| `LNE` | `lne A B` | Draws a pixel from (A, B) to PTR. |
-| `CLR` | `clr` | Clears the screen with the current set-colour. |
-
-
-### Colours;
-_Used with COL, as_ `COL c{hex}`
-| _Hex_ | _Name_ | _RGB_ |     | _Hex_ | _Name_ | _RGB_ |
-| :---: | :--- | :---: | --- | :---: | :--- | :---: |
-| `0` | Black | `(0  , 0  , 0  )` | | `8` | Light Grey | `(187, 187, 187)` |
-| `1` | Dark Red | `(128, 0  , 0  )` | | `9` | Light Red | `(187, 0  , 0  )` |
-| `2` | Dark Green | `(0  , 128, 0  )` | | `A` | Light Green | `(0  , 187, 0  )` |
-| `3` | Dark Yellow | `(128, 128, 0  )` | | `B` | Light Yellow | `(187, 187, 0  )` |
-| `4` | Dark Blue | `(0  , 0  , 128)` | | `C` | Light Blue | `(0  , 0  , 187)` |
-| `5` | Dark Magenta | `(128, 0  , 128)` | | `D` | Light Magenta | `(187, 0  , 187)` |
-| `6` | Dark Cyan | `(0  , 128, 128)` | | `E` | Light Cyan | `(0  , 187, 187)` |
-| `7` | Dark Grey | `(128, 128, 128)` | | `F` | White | `(255, 255, 255)` |
-
-
-### The Instruction-set;
-| _Name_ | _Hex_ | _Function_ |     | _Name_ | _Hex_ | _Function_ |
-| :---: | :---: | --- | --- | :---: | :---: | --- |
-| `SET` | `0` | Sets register A to value B | | `ADD` | `8` | Sum of A and B |
-| `MOV` | `1` | Moves contents of register A to register B | | `SUB` | `9` | Sum of A and -B |
-| `AND` | `2` | Logical A AND B | | `MUL` | `A` | Product of A and B |
-| `OR` | `3` | Logical A OR B | | `DIV` | `B` | A divided by B |
-| `NOT` | `4` | Logical NOT A | | `ABS` | `C` | Absolute value of A |
-| `LSS` | `5` | If A < B | | `BRN` | `D` | Branch to instruction A if B is True. |
-| `EQU` | `6` | If A == B | | `REC` | `E` | Draw rectangle at pos (A, B) and PTR Dimentions. |
-| `GRT` | `7` | If A > B | | `LNE` | `F` | Draw line starting at pos (A, B) and ending at PTR Coordinates. |
+## Command arguments (for compiled interpreter program)
+| _Name_ | _Shorthand_ | _Function |
+| :---: | :---: | :--- |
+| `--file` | `-f` | Specifies fabricated CFAB data file to be used, relative to dir (data/) beside the interpreter.
+| `--verbose` | `-v` | Lists every instruction executed by the interpreter. |
+| `--rate` | `-r` | Shows total instructions executed, time taken and instr/sec. |
+| `--test` | `-t` | Runs standardised unit tests. |
+| `--debug` | `-d` | Dev-only debug mode. Runs hardcoded func in interpreter. |
+| `--peek` | `-p` | Allows you to read memory addresses (such as `r 0` or `ram 12`) once program `HALT`s. |
