@@ -1,0 +1,15 @@
+$m = #58
+$n = #33
+
+$rOld = $m
+$rNew = $n
+
+:loop
+$t = $rNew
+$rOld % $t
+rOP ~ $rNew
+$rOld = $t
+if ($rNew > #0) then-goto :loop
+
+PRINT "Result = "
+COUT $rOld

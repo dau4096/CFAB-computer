@@ -18,7 +18,7 @@ using namespace std;
 #define BITS_12 0xFFF
 #define BITS_16 0xFFFF
 
-#define FILE_PATH "data/testloop.dat"
+#define FILE_PATH "data/help.dat"
 
 //////// GENERAL ////////
 

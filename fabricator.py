@@ -73,12 +73,12 @@ opcodes = {
 infixOperatorsList = {
 	"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
 	"!": "not", "&": "and", "|": "or", "~^": "xnor", "^": "xor",
-	">": "gtr", "<": "lss", ">=": "gte", "<=": "lse", "==": "equ",
+	">": "grt", "<": "lss", ">=": "gte", "<=": "lse", "==": "equ",
 	"!=": "neq", "=": "set", "~": "mov", "++": "inc", "--": "dec",
 	">>": "rsh", "<<": "lsh"
 }
 
-charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
+charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
 
 
 class FabricationError(Exception):
@@ -317,8 +317,10 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 					#Newlines
 					charIDX = len(charSet);
 				else:
-					charIDX:int = charSet.index(char);
-					if (charIDX < 0): continue;
+					try:
+						charIDX:int = charSet.index(char);
+					except ValueError:
+						raise FabricationError(f"Could not find character: [{char}]")
 
 				instructions.append("1011" + opcodes["i_o"] + toBin(charIDX) + BLANK);
 

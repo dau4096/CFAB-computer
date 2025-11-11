@@ -270,7 +270,7 @@ Ia | Ib | F B | I N S T R |
 					break;
 				}
 				case 3u: { //Prints char from given char-set.
-					const std::string charSet = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
+					const std::string charSet = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
 					uint8_t index = static_cast<uint8_t>(*Aptr);
 					if (index < charSet.length()) {
 						std::cout << charSet.at(index) << std::flush;

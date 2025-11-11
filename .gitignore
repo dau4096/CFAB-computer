@@ -30,6 +30,7 @@ app*
 *.exe
 *.ini
 data/*.dat
+!data/help.dat
 
 # Other
 notes.md
