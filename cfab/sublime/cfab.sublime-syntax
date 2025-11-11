@@ -12,7 +12,25 @@ contexts:
     #Comments
     - match: '//'
       scope: punctuation.definition.comment
-      push: line_comment
+      push:
+        - meta_scope: comment.line
+        - match: $
+          pop: true
+
+    #Strings
+    - match: '"'
+      scope: punctuation.definition.string.begin.example-c
+      push:
+        - meta_scope: string.quoted.double.example-c
+        - match: '\\.'
+          scope: constant.character.escape.example-c
+        - match: '"'
+          scope: punctuation.definition.string.end.example-c
+          pop: true
+
+    #Newline char
+    - match: '(?i)(\\n)'
+      scope: constant.character.escape
 
     #Markers
     - match: ':(?i)[a-z0-9]+'
@@ -29,12 +47,12 @@ contexts:
 
 
     #Branch alternative notation
-    - match: '(?i)\bif(\s?)(\(?)\b'
+    - match: '(?i)\bif(\s?)\b'
       scope: keyword.control
       push:
         - meta_scope: meta.branch.alt
         - include: main
-        - match: '(?i)\b(\)?)then(-goto)?\b'
+        - match: '(?i)\bthen(-goto)?\b'
           scope: keyword.control
           pop: true
 
@@ -62,7 +80,7 @@ contexts:
       scope: keyword.operator
 
     #Other prefix
-    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|ramread|ramwrite|halt|sleep|wait|input|output|cout)\b'
+    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|ramread|ramwrite|halt|sleep|wait|input|output|cout|print)\b'
       scope: keyword.control
 
 
@@ -89,7 +107,3 @@ contexts:
 
 
 
-  line_comment:
-    - meta_scope: comment.line
-    - match: $
-      pop: true
