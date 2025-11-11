@@ -500,21 +500,50 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 
 
 def replaceAliases(lines):
-	aliases = {}
-	aliasReplaced = []
+	aliases:dict[str,int] = {};
+	aliasReplaced:list[str] = [];
+	unassignedAliases:set[str] = set();
 
+	#Find aliases
+	"""
+	Define aliasing for register names like so;
+	 varName  @ r1
+	Every time varName is written, it is replaced by r1 by the fabricator.
+	Allows for nicer formatting of CFAB.
+	Can also be defined without explicit register address, and will be automatically assigned an address.
+	"""
+	for (lineNum, curLine) in enumerate(lines):
+		operands = curLine.split(" ");
+		for operand in operands:
+			res = regex.match(rf"(?i)\$[a-z0-9]+(?=$|\W)", operand);
+			if (res is not None): #Alias found
+				unassignedAliases.add(res.group(0));
+
+	availableRegisters = [f"r{x}" for x in range(63)]; #Does not include rOP (r63) as it should NEVER be overwritten.
+	for (lineNum, curLine) in enumerate(lines):
+		#Defined alias explicitly
+		operands = curLine.split(" ");
+		if ((len(operands) == 3) and (operands[1] == "@")):
+			aliasName:str = operands[0].replace("$", "");
+			aliases[aliasName] = operands[2]
+			unassignedAliases.remove(operands[0]); #Remove alias from list, user defined.
+			idx:str = "";
+			if (operands[2].lower() == "rop"): idx = "r63";
+			else: idx = operands[2];
+			availableRegisters.remove(idx)
+
+
+	#Assign implicit aliases to registers.
+	if (len(unassignedAliases) > len(availableRegisters)):
+		raise FabricationError(f"Too many assigned aliases: {len(aliases)+len(unassignedAliases)}. Can have at most, 63.");
+	for (alias, register) in zip(unassignedAliases, availableRegisters):
+		aliases[alias.replace("$", "")] = register;
+
+
+	#Replace aliases in the line
 	for lineNum, curLine in enumerate(lines):
-		"""
-		Define aliasing for register names like so;
-		 varName  @ r1
-		Every time varName is written, it is replaced by r1 by the fabricator.
-		Allows for nicer formatting of CFAB.
-		"""
-		operands = curLine.split(" ")
-		if len(operands) == 3:
-			if operands[1] == "@":
-				aliases[operands[0].replace("$", "")] = operands[2]
-				continue
+		operands = curLine.split(" ");
+		if ((len(operands) == 3) and (operands[1] == "@")): continue; #Ignore alias def lines.
 
 		fixedLine = regex.sub(
 			rf"(?i)rop(?=$|\W)",
@@ -524,7 +553,7 @@ def replaceAliases(lines):
 		for alias, register in aliases.items():
 			fixedLine = regex.sub(
 				rf"\${alias}(?=$|\W)",
-				register,
+				register, #Any user-defined aliases.
 				fixedLine
 			);
 
