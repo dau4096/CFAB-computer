@@ -74,7 +74,8 @@ infixOperatorsList = {
 	"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
 	"!": "not", "&": "and", "|": "or", "~^": "xnor", "^": "xor",
 	">": "gtr", "<": "lss", ">=": "gte", "<=": "lse", "==": "equ",
-	"!=": "neq", "=": "set", "~": "mov", "++": "inc", "--": "dec"
+	"!=": "neq", "=": "set", "~": "mov", "++": "inc", "--": "dec",
+	">>": "rsh", "<<": "lsh"
 }
 
 charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.";
@@ -214,6 +215,16 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "11" + opcodes["grt"] + A + B,
 			);
 
+		case "rsh":
+			return (
+				immediates + "00" + opcodes["shf"] + A + B,
+			);
+
+		case "lsh":
+			return (
+				immediates + "01" + opcodes["shf"] + A + B,
+			);
+
 		case "brn":
 			try:
 				instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
@@ -298,7 +309,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 			return tuple(instructions);
 
 		case "print":
-			text:str = ln.split(' "')[1].replace('"','').replace("\\n", "$");
+			text:str = ln.split('"')[1].replace('"','').replace("\\n", "$");
 
 			instructions:list[str] = []
 			for char in text:
@@ -366,7 +377,7 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 
 	elif operands[0] in (
 		"ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread",
-		"xnor", "halt", "sleep", "wait",
+		"and", "or", "xnor", "halt", "sleep", "wait",
 		"input", "output", "cout", "inc", "dec"
 	):
 		#Chained or unusual operators
@@ -418,7 +429,7 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 				raise FabricationError(f"Macro definition missing name and/or parameters: {curLine}")
 
 			macroName = macroData[1].replace("%", "")
-			macroParams = macroData[2:]
+			macroParams = macroData[2:-1]
 			macroLines = []
 			i = 0
 
@@ -489,9 +500,7 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 
 
 def replaceAliases(lines):
-	aliases = {
-		"rop": "r63"
-	}
+	aliases = {}
 	aliasReplaced = []
 
 	for lineNum, curLine in enumerate(lines):
@@ -507,10 +516,14 @@ def replaceAliases(lines):
 				aliases[operands[0].replace("$", "")] = operands[2]
 				continue
 
-		fixedLine = curLine
+		fixedLine = regex.sub(
+			rf"(?i)rop(?=$|\W)",
+			"r63", #Result register
+			curLine
+		);
 		for alias, register in aliases.items():
 			fixedLine = regex.sub(
-				rf"(?i)(\$?){alias}",
+				rf"\${alias}(?=$|\W)",
 				register,
 				fixedLine
 			);
@@ -524,7 +537,7 @@ def replaceAliases(lines):
 
 if __name__ == "__main__":
 
-	inFileName = "fizzbuzz.cfab";
+	inFileName = "resqMod.cfab";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
@@ -538,7 +551,7 @@ if __name__ == "__main__":
 
 	with open(f"cfab/{inFileName}", "r") as CFABFile:
 		readlines = CFABFile.readlines()
-		partial_lines = [line.strip() for line in readlines if not line.startswith("//")]
+		partial_lines = [line.strip() for line in readlines if not line.strip().startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
 
 

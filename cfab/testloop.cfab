@@ -7,6 +7,7 @@ r0 = #0
 r0 + #1
 rOP ~ r0
 r0 < #127
+COUT r0 \n
 BRN :loop
 //Add 1 to r0, then compare it to r2.
 //if r0 doesnt equal r2 then loop until it does.

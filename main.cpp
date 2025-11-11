@@ -76,14 +76,14 @@ int main(int argc, char* argv[]) {
 			std::cerr << "\033[1;31mFailed to load instructions from: " << FILE_PATH << "\033[0;m" << std::endl;
 			return -1;
 		}
-		std::cout << "\033[1;30mLoaded " << instructionData.size() << " instructions from [" << filePath << "]\033[0;m" << std::endl;
+		std::cout << "\033[1;30mLoaded " << instructionData.size() << " instructions from [" << filePath << "]\033[0;m" << std::endl << std::endl;
 
 
 		//Execute.
 		CFAB::runInstructionSet(instructionData);
 	}
 
-	std::cout << "\033[1;33m[END]\033[0;m" << std::endl;
+	std::cout << std::endl << "\033[1;33m[END]\033[0;m" << std::endl;
 
 	if (enablePeek) {
 		//User requests to view specific register indices.

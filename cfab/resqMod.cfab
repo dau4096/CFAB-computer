@@ -1,0 +1,61 @@
+//Define var aliases
+$x @ r0
+$y @ r1
+$z @ r2
+$n @ r3
+$t @ r4
+$p @ r5
+$iter @ r6
+
+
+define %accessBit $value $bitIDX as
+	$value >> $bitIDX
+	$value & #b1
+end
+
+
+//Processing vars
+$x = #b10
+$y = #b1101011
+$n = #d11
+$t = #d6
+
+
+//Display;
+COUT $x
+PRINT "^"
+COUT $y
+PRINT " % "
+COUT $n
+
+
+//Setup
+$z = #1
+$x % $n
+rOP ~ $p
+$iter = #0
+
+
+//Main loop
+:loop
+
+//Deal with $z
+%accessBit $y $iter
+if (rOP != #1) then-goto :skip
+	$z * $p
+	rOP % $n
+	rOP ~ $z
+:skip
+
+//Deal with $p
+$p * $p
+rOP % $n
+rOP ~ $p
+
+$iter ++
+if ($iter <= $t) then-goto :loop
+
+
+//Show result
+PRINT " = "
+COUT $z

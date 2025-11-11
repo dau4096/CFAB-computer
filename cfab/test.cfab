@@ -69,7 +69,7 @@ __f
 $testName @ r1
 $testName / r2
 
-def %testMacro $A $B
+define %testMacro $A $B as
 $A + $B
 end
 

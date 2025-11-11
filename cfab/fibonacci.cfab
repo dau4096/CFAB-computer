@@ -7,8 +7,8 @@ $iteration @ r2
 $previous = #1
 $current = #1
 
-COUT $previous
-COUT $current
+COUT $previous \n
+COUT $current \n
 
 
 //Fibonacci sequence
@@ -18,10 +18,10 @@ $current ~ $previous
 rOP ~ $current
 
 //Show current value.
-COUT $current
+COUT $current \n
 
 //Loop if not exceeding maximum iterations
 $iteration ++
-if ($iteration < #8) then-goto :loop
+if ($iteration < #9) then-goto :loop
 
 
