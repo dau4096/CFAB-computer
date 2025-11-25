@@ -137,25 +137,30 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes[operator] + BLANK + BLANK,
 			);
 
+
 		case "set" | "mov" | "add" | "sub" | "mul" | "div" | "equ" | "grt" | "i_o" | "shf":
 			return (
 				immediates + "00" + opcodes[operator] + A + B,
-			)
+			);
+
 
 		case "and":
 			return (
 				immediates + "01" + opcodes["mul"] + A + B,
 			);
 
+
 		case "or":
 			return (
 				immediates + "01" + opcodes["add"] + A + B,
 			);
 
+
 		case "not":
 			return (
 				immediates[0] + "000" + opcodes[operator] + A + BLANK,
-			)
+			);
+
 
 		case "inc": #Increment
 			return (
@@ -163,11 +168,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes["mov"] + REG_RESULT + A,
 			);
 
+
 		case "dec": #Decrement
 			return (
 				immediates[0] + "100" + opcodes["sub"] + A + toBin(1),
 				"0000" + opcodes["mov"] + REG_RESULT + A,
 			);
+
 
 		case "sgn": #Sign
 			return (
@@ -175,55 +182,66 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates[0] + "000" + opcodes["div"] + A + REG_RESULT,
 			);
 
+
 		case "inv":
 			return (
 				immediates[0] + "010" + opcodes["not"] + A,
 			);
+
 
 		case "mod":
 			return (
 				immediates + "01" + opcodes["div"] + A + B,
 			);
 
+
 		case "neq":
 			return (
 				immediates + "01" + opcodes["equ"] + A + B,
 			);
+
 
 		case "xor":
 			return (
 				immediates + "10" + opcodes["equ"] + A + B,
 			);
 
+
 		case "xnor":
 			return (
 				immediates + "11" + opcodes["equ"] + A + B,
 			);
+
 
 		case "lss":
 			return (
 				immediates + "01" + opcodes["grt"] + A + B,
 			);
 
+
 		case "gte":
 			return (
 				immediates + "10" + opcodes["grt"] + A + B,
 			);
+
 
 		case "lse":
 			return (
 				immediates + "11" + opcodes["grt"] + A + B,
 			);
 
+
 		case "rsh":
 			return (
 				immediates + "00" + opcodes["shf"] + A + B,
 			);
 
+
 		case "lsh":
 			return (
 				immediates + "01" + opcodes["shf"] + A + B,
 			);
+
 
 		case "brn":
 			try:
@@ -234,6 +252,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "10" + opcodes["brn"] + instrIdx,
 			);
 
+
 		case "jmp":
 			try:
 				instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
@@ -242,6 +261,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 			return (
 				immediates + "00" + opcodes["brn"] + instrIdx,
 			);
+
 
 		case "if":
 			condition:str = convertLine(preA, makeHex=False)[0];
@@ -260,20 +280,24 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes["ext"] + BLANK + BLANK,
 			);
 
+
 		case "clear":
 			return (
 				immediates[0] + "001" + opcodes["ext"] + A + BLANK,
 			);
+
 
 		case "ramwrite":
 			return (
 				immediates + "10" + opcodes["ext"] + A + B,
 			);
 
+
 		case "ramread":
 			return (
 				immediates + "11" + opcodes["ext"] + A + B,
 			);
+
 
 		case "sleep":
 			#Sleeps for specified number of milliseconds
@@ -282,11 +306,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "00" + opcodes["slp"] + sleepMS,
 			);
 
+
 		case "wait":
 			#Waits for user input
 			return (
 				"0001" + opcodes["slp"] + BLANK + BLANK,
 			);
+
 
 		case "input":
 			#Gets user input
@@ -294,11 +320,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "00" + opcodes["i_o"] + A + B,
 			);
 
+
 		case "output":
 			#Writes to output
 			return (
 				immediates + "01" + opcodes["i_o"] + A + B,
 			);
+
 
 		case "cout":
 			#Writes to console
@@ -308,11 +336,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 			return tuple(instructions);
 
+
 		case "print":
 			text:str = ln.split('"')[1].replace('"','').replace("\\n", "$");
 
-			instructions:list[str] = []
+			chars:list[int] = [];
 			for char in text:
+				charIDX:int = 0;
 				if (char == "$"):
 					#Newlines
 					charIDX = len(charSet);
@@ -322,9 +352,24 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 					except ValueError:
 						raise FabricationError(f"Could not find character: [{char}]")
 
-				instructions.append("1011" + opcodes["i_o"] + toBin(charIDX) + BLANK);
+				chars.append(charIDX);
+
+
+			numCharacters:int = len(chars) & 0xFFFF; #16 bits max length for text strings. Should be plenty.
+			instructions:list[str] = [
+				"1011" + opcodes["i_o"] + format(numCharacters, "16b")
+			];
+			#Each char is only 7 bits (1 extra padding, to 8.)
+			#So I can store 3 per "instruction" here and not break later stages.
+			for i in range((len(chars) + 2) // 3): #Always round UP.
+				startIDX:int = i*3;
+				charTriple:list[int] = chars[startIDX:startIDX+3];
+				charTriple.extend([0 for _ in range(3-len(charTriple))]); #Make sure it is always 3 long.
+				binChars = [format(x, "08b") for x in charTriple];
+				instructions.append("".join(binChars)); #Make new fake instruction for these 3 characters.
 
 			return tuple(instructions);
+
 
 		case _:
 			raise FabricationError(f"Unknown Command encountered: {operator} {A} {B}")
