@@ -55,10 +55,17 @@ using namespace std;
 
 //////// MEMORY ////////
 
-#define RAM_COUNT 4096u /* 2^12 */
-
+//REGISTERS
 #define REG_COUNT 64u /* 2^6 */
 #define REG_RESULT 63u /* Last index, stores result of last instruction if it returned one. */
+
+
+//RAM
+#define RAM_COUNT 4096u /* 2^12 */
+//SCREEN [RAM]
+#define SCREEN_INDEX 3584u /* 0xE00, 512 bytes at the end of the RAM. */
+#define SCREEN_WIDTH 32u
+#define SCREEN_HEIGHT 16u
 
 //////// MEMORY ////////
 

@@ -3,6 +3,7 @@
 #include "src/utils.h"
 #include "src/instr.h"
 #include "src/tests.h"
+#include "src/graphics.h"
 #include "cxxopts.hpp"
 using namespace std;
 
@@ -24,6 +25,13 @@ void debug() {
 std::string filePath = FILE_PATH;
 bool enablePeek = false, runNormal = true;
 
+std::unordered_map<std::string, GraphicsMode> graphicsModeMap = {
+	{"NONE", GM_NONE}, {"0", GM_NONE},
+	{"TEXT", GM_TEXT}, {"1", GM_TEXT},
+	{"BYTE", GM_256c}, {"2", GM_256c}, {"256", GM_256c},
+	{"RGBC", GM_RGBc}, {"3", GM_RGBc}, {"RGB", GM_RGBc}
+};
+
 void handleArguments(int argc, char* argv[]) {
 	//Process arguments
 	cxxopts::Options options = cxxopts::Options("CFAB-Computer/V2", "Processes fabricated CFABv2 instructions.");
@@ -34,7 +42,8 @@ void handleArguments(int argc, char* argv[]) {
         ("v,verbose", "Show detailed output from commands.")
         ("r,rate", "Show elapsed time and frequency.")
         ("t,test", "Run automated tests.")
-        ("d,debug", "Minimal debugging setup.");
+        ("d,debug", "Minimal debugging setup.")
+        ("c,colour", "RAM-Screen output mode.", cxxopts::value<std::string>());
 
     auto result = options.parse(argc, argv);
 
@@ -57,6 +66,16 @@ void handleArguments(int argc, char* argv[]) {
     }
     if (result.count("rate")) {
     	checkSpeed = true;
+    }
+    if (result.count("colour")) {
+    	std::string upper = utils::strToUpper(result["colour"].as<std::string>());
+		auto it = graphicsModeMap.find(upper);
+		if (it == graphicsModeMap.end()) {
+			//Not in the map. Default to GM_NONE.
+			graphicsMode = GM_NONE;
+		} else {
+			graphicsMode = it->second;
+		}
     }
 
 }
