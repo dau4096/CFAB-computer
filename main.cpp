@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
 
 		std::cout << "\033[1;30m-NORMAL-\033[0;m" << std::endl;
 		std::vector<unsigned int> instructionData;
-		if (!loader::loadInstructions(filePath, &instructionData)) {
+		if (!loader::loadCFABFile(filePath, &instructionData)) {
 			std::cerr << "\033[1;31mFailed to load instructions from: " << FILE_PATH << "\033[0;m" << std::endl;
 			return -1;
 		}

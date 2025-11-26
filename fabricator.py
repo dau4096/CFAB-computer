@@ -78,10 +78,11 @@ infixOperatorsList = {
 	">>": "rsh", "<<": "lsh"
 }
 
-charSet:str = r"0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
 
-global graphicsMode;
+global graphicsMode, ROM_DATA, ROM_INDEX;
 graphicsMode = "NONE";
+ROM_INDEX = [] #Start index for this segment [16b]*. Needs to contain ROM_NUMBER + 1.
+ROM_DATA = []; #Static data, such as long text strings. [16b]*
 
 
 class FabricationError(Exception):
@@ -114,7 +115,7 @@ def toBin(value:int) -> str:
 
 
 
-def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str=""):
+def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="", shouldAddToROM:bool=True):
 	BLANK:str = "00000000";
 	REG_RESULT:str = toBin(63);
 
@@ -140,25 +141,30 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes[operator] + BLANK + BLANK,
 			);
 
+
 		case "set" | "mov" | "add" | "sub" | "mul" | "div" | "equ" | "grt" | "i_o" | "shf":
 			return (
 				immediates + "00" + opcodes[operator] + A + B,
-			)
+			);
+
 
 		case "and":
 			return (
 				immediates + "01" + opcodes["mul"] + A + B,
 			);
 
+
 		case "or":
 			return (
 				immediates + "01" + opcodes["add"] + A + B,
 			);
 
+
 		case "not":
 			return (
 				immediates[0] + "000" + opcodes[operator] + A + BLANK,
-			)
+			);
+
 
 		case "inc": #Increment
 			return (
@@ -166,11 +172,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes["mov"] + REG_RESULT + A,
 			);
 
+
 		case "dec": #Decrement
 			return (
 				immediates[0] + "100" + opcodes["sub"] + A + toBin(1),
 				"0000" + opcodes["mov"] + REG_RESULT + A,
 			);
+
 
 		case "sgn": #Sign
 			return (
@@ -178,55 +186,66 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates[0] + "000" + opcodes["div"] + A + REG_RESULT,
 			);
 
+
 		case "inv":
 			return (
 				immediates[0] + "010" + opcodes["not"] + A,
 			);
+
 
 		case "mod":
 			return (
 				immediates + "01" + opcodes["div"] + A + B,
 			);
 
+
 		case "neq":
 			return (
 				immediates + "01" + opcodes["equ"] + A + B,
 			);
+
 
 		case "xor":
 			return (
 				immediates + "10" + opcodes["equ"] + A + B,
 			);
 
+
 		case "xnor":
 			return (
 				immediates + "11" + opcodes["equ"] + A + B,
 			);
+
 
 		case "lss":
 			return (
 				immediates + "01" + opcodes["grt"] + A + B,
 			);
 
+
 		case "gte":
 			return (
 				immediates + "10" + opcodes["grt"] + A + B,
 			);
+
 
 		case "lse":
 			return (
 				immediates + "11" + opcodes["grt"] + A + B,
 			);
 
+
 		case "rsh":
 			return (
 				immediates + "00" + opcodes["shf"] + A + B,
 			);
 
+
 		case "lsh":
 			return (
 				immediates + "01" + opcodes["shf"] + A + B,
 			);
+
 
 		case "brn":
 			try:
@@ -237,6 +256,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "10" + opcodes["brn"] + instrIdx,
 			);
 
+
 		case "jmp":
 			try:
 				instrIdx:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
@@ -245,6 +265,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 			return (
 				immediates + "00" + opcodes["brn"] + instrIdx,
 			);
+
 
 		case "if":
 			condition:str = convertLine(preA, makeHex=False)[0];
@@ -263,20 +284,24 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				"0000" + opcodes["ext"] + BLANK + BLANK,
 			);
 
+
 		case "clear":
 			return (
 				immediates[0] + "001" + opcodes["ext"] + A + BLANK,
 			);
+
 
 		case "ramwrite":
 			return (
 				immediates + "10" + opcodes["ext"] + A + B,
 			);
 
+
 		case "ramread":
 			return (
 				immediates + "11" + opcodes["ext"] + A + B,
 			);
+
 
 		case "sleep":
 			#Sleeps for specified number of milliseconds
@@ -285,11 +310,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "00" + opcodes["slp"] + sleepMS,
 			);
 
+
 		case "wait":
 			#Waits for user input
 			return (
 				"0001" + opcodes["slp"] + BLANK + BLANK,
 			);
+
 
 		case "input":
 			#Gets user input
@@ -297,37 +324,38 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 				immediates + "00" + opcodes["i_o"] + A + B,
 			);
 
+
 		case "output":
 			#Writes to output
 			return (
 				immediates + "01" + opcodes["i_o"] + A + B,
 			);
 
+
 		case "cout":
-			#Writes to console
+			#Writes integer value to console
 			instructions:list[str] = [immediates[0] + "010" + opcodes["i_o"] + A + BLANK,];
 			if ((type(preB) == str) and (("$" in preB) or ("\\n" in preB))):
 				instructions.append("1011" + opcodes["i_o"] + toBin(len(charSet)) + BLANK); #COUT << NEWLINE instruction
 
 			return tuple(instructions);
 
+
 		case "print":
-			text:str = ln.split('"')[1].replace('"','').replace("\\n", "$");
+			#Writes text to console. Uses ROM at the end of the file.
+			text:str = ln.split('"')[1].replace('"','');
+			if (not shouldAddToROM): return ("1011" + opcodes["i_o"] + BLANK + BLANK);
 
-			instructions:list[str] = []
-			for char in text:
-				if (char == "$"):
-					#Newlines
-					charIDX = len(charSet);
-				else:
-					try:
-						charIDX:int = charSet.index(char);
-					except ValueError:
-						raise FabricationError(f"Could not find character: [{char}]")
+			ROM_INDEX.append(format(len(ROM_DATA), "04x")); #First byte of this ROM section.
+			ROMidx:int = len(ROM_INDEX)-1; #Add to end of index. Take last index.
+			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK,)
 
-				instructions.append("1011" + opcodes["i_o"] + toBin(charIDX) + BLANK);
+			text = text.replace("\\n", "\n"); #Replace with actual 0x0A newline chars;
+			ROM_DATA.extend([format(ord(char), "08b") for char in text]);
 
-			return tuple(instructions);
+			return instructions;
+
+
 
 		case _:
 			raise FabricationError(f"Unknown Command encountered: {operator} {A} {B}")
@@ -405,7 +433,7 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
-	instructionList = convertAllToBin(operator, immediates, A, B, ln=line);
+	instructionList = convertAllToBin(operator, immediates, A, B, ln=line, shouldAddToROM=makeHex);
 	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
 
 	return hexList
@@ -576,15 +604,15 @@ def replaceAliases(lines):
 
 
 
-def getHeader(numberOfInstructions:int, graphicsMode:str="NONE") -> str:
+def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegments:int=1) -> str:
 	"Gets the header for this file, containing some metadata and an identifier string."
 
-	def STRtoBinary(s:str) -> str: return "".join([format(charSet.index(x)&0xFF, "08b") for x in s]);
+	def STRtoBinary(s:str) -> str: return "".join([format(ord(x)&0xFF, "08b") for x in s]);
 	def INTtoBinary(i:int, bits:int) -> str: return f"{i & ((1 << bits) - 1):0{bits}b}"
-	def BINtoHexade(binary: str) -> str: return "".join(f"{int(binary[i:i+4], 2):X}" for i in range(0, len(binary), 4));
+	def BINtoHexade(binary: str) -> str: return format(int(binary, 2), f"0{len(binary)//4}x");
 
 
-	HEADER_LENGTH = 64; #MUST be multiple of 4.
+	HEADER_LENGTH = 72; #MUST be multiple of 4.
 
 
 	modeMap:tuple[str] = ("NONE", "TEXT", "256C", "RGB");
@@ -596,16 +624,18 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE") -> str:
 
 	#Header parts
 	IDENT:str = STRtoBinary("CFAB"); #32 bits.
-	VERSION:str = INTtoBinary(2, bits=8); #Version 2 of this CFAB format. [CFABv2]. 8 bits.
+	VERSION:str = INTtoBinary(3, bits=8); #Version 3 of this CFAB format. [CFABv2]. 8 bits.
 	INSTR:str = INTtoBinary(numberOfInstructions, bits=16); #16 bits.
 	MODE:str = INTtoBinary(modeIndex, bits=2); #2 bits.
+	ROMSEGS:str = INTtoBinary(numberOfROMSegments, bits=10); #10 bits.
 
-	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE);
+
+
+	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE)+len(ROMSEGS);
 	PADDING:str = "0" * (HEADER_LENGTH-totalUsed); #Pad to HEADER_LENGTH bits.
 
-
 	#Convert to HexaDe(cimal)
-	return BINtoHexade(IDENT + VERSION + INSTR + MODE + PADDING);
+	return BINtoHexade(IDENT + VERSION + INSTR + MODE + ROMSEGS + PADDING);
 
 
 
@@ -661,27 +691,43 @@ if __name__ == "__main__":
 			].index(curLine)
 
 
-	fabricated = []
+	instructionHexList:list[str] = [];
 	for line in aliasReplaced:
 		if not line.startswith(":"):
 			#Convert lines using convertLine().
-			fabricated.extend(convertLine(line)) #1 line of CFAB can correspond to multiple instructions
+			instructionHexList.extend(convertLine(line)) #1 line of CFAB can correspond to multiple instructions
 
 	del macros, markers
 	del aliasReplaced
 
+	#Add the END index to the ROM_INDEX set.
+	ROM_INDEX.append(format(len(ROM_DATA), "04x")); #16-bit.
 	
 	#Make the list of hex instructions into a set of bytes.
-	numberOfInstructions:int = len(fabricated);
-	combinedHex = getHeader(numberOfInstructions, graphicsMode);
-	for hexInstruction in fabricated:
-		combinedHex += hexInstruction
+	numberOfInstructions:int = len(instructionHexList); #6 hex values per instr (3 bytes)
+	instructionHex:str = "".join(instructionHexList);
+	headerHex:str = getHeader(
+		numberOfInstructions,
+		graphicsMode,
+		len(ROM_INDEX)-1 #Number of ROM segments. Will always have 1 extra for the END index.
+	);
+	ROMindexHex:str = "".join(ROM_INDEX);
+	ROMdataHex:str = "".join([format(int(x,2), "02x") for x in ROM_DATA]); #8-bit.
 
-	if (len(combinedHex) % 2): combinedHex += "0"; #Even length.
-	combinedBytes = bytes.fromhex(combinedHex)
 
-	print(f"Fabrication complete.\nWrote {len(combinedBytes)} bytes [{len(combinedBytes)//3} instructions] to data/{outFileName}");
+	if (len(instructionHex) % 2): instructionHex += "0"; #Even length.
+	headerBytes:bytes = bytes.fromhex(headerHex);
+	instructionBytes:bytes = bytes.fromhex(instructionHex);
+	ROMindexBytes:bytes = bytes.fromhex(ROMindexHex);
+	ROMdataBytes:bytes = bytes.fromhex(ROMdataHex);
+	totalBytes:int = len(instructionBytes) + len(ROMindexBytes) + len(ROMdataBytes);
+
+	print(f"Fabrication complete.\nWrote {totalBytes} bytes [{numberOfInstructions} instructions] to data/{outFileName}");
+
 
 	with open(f"data/{outFileName}", "wb") as outFile:
 		#Write to a file.
-		outFile.write(combinedBytes)
+		outFile.write(headerBytes);
+		outFile.write(instructionBytes);
+		outFile.write(ROMindexBytes);
+		outFile.write(ROMdataBytes);

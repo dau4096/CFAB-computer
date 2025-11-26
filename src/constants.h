@@ -19,7 +19,7 @@ using namespace std;
 #define BITS_16 0xFFFF
 
 #define FILE_PATH "data/help.dat"
-#define HEADER_LENGTH_BYTES 8u /* 64 bits. */
+#define HEADER_LENGTH_BYTES 9u /* 72 bits. */
 
 //////// GENERAL ////////
 

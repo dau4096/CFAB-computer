@@ -270,15 +270,27 @@ Ia | Ib | F B | I N S T R |
 					break;
 				}
 				case 3u: { //Prints char from given char-set.
-					const std::string charSet = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
-					uint8_t index = static_cast<uint8_t>(*Aptr);
-					if (index < charSet.length()) {
-						std::cout << charSet.at(index) << std::flush;
-						needsNewLN = true;
-					} else if (index == charSet.length()) {
-						//Newline char
-						std::cout << std::endl;
-						needsNewLN = false;
+					if (!Aimmediate) { //Single "dynamic" char from memory [older method]
+						uint8_t index = static_cast<uint8_t>(*Aptr);
+						if (index < 0xFFu) {
+							std::cout << char(index) << std::flush;
+							needsNewLN = true;
+						} else if (index == 0x0Au) {
+							//Newline char
+							std::cout << std::endl;
+							needsNewLN = false;
+						}
+
+					} else { //Read longer text from ROM.
+						uint8_t ROMsegmentIndex = static_cast<uint16_t>(*Aptr);
+
+						std::pair<uint16_t, uint16_t> ROMindexPair = readOnlyMemoryIndices[ROMsegmentIndex];
+						uint16_t numberOfCharacters = ROMindexPair.second - ROMindexPair.first;
+
+						std::cout.write(
+							reinterpret_cast<const char*>(&readOnlyMemory[ROMindexPair.first]),
+							numberOfCharacters
+						);
 					}
 				}
 			}
