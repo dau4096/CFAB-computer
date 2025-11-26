@@ -80,8 +80,10 @@ infixOperatorsList = {
 
 charSet:str = r"0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
 
-global graphicsMode;
+global graphicsMode, ROM_DATA, ROM_INDEX;
 graphicsMode = "NONE";
+ROM_INDEX = [] #Start index for this segment [16b]*. Needs to contain ROM_NUMBER + 1.
+ROM_DATA = []; #Static data, such as long text strings. [16b]*
 
 
 class FabricationError(Exception):
@@ -332,7 +334,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 
 		case "cout":
-			#Writes to console
+			#Writes integer value to console
 			instructions:list[str] = [immediates[0] + "010" + opcodes["i_o"] + A + BLANK,];
 			if ((type(preB) == str) and (("$" in preB) or ("\\n" in preB))):
 				instructions.append("1011" + opcodes["i_o"] + toBin(len(charSet)) + BLANK); #COUT << NEWLINE instruction
@@ -341,9 +343,13 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 
 		case "print":
+			#Writes text to console. Uses ROM at the end of the file.
 			text:str = ln.split('"')[1].replace('"','').replace("\\n", "$");
 
-			chars:list[int] = [];
+			ROM_INDEX.append(format(len(ROM_DATA), "016b")); #First byte of this ROM section.
+			ROMidx:int = len(ROM_INDEX)-1; #Add to end of index. Take last index.
+			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK)
+
 			for char in text:
 				charIDX:int = 0;
 				if (char == "$"):
@@ -354,24 +360,10 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 						charIDX:int = charSet.index(char);
 					except ValueError:
 						raise FabricationError(f"Could not find character: [{char}]")
+				ROM_DATA.append(charIDX);
 
-				chars.append(charIDX);
+			return instructions;
 
-
-			numCharacters:int = len(chars) & 0xFFFF; #16 bits max length for text strings. Should be plenty.
-			instructions:list[str] = [
-				"1011" + opcodes["i_o"] + format(numCharacters, "16b")
-			];
-			#Each char is only 7 bits (1 extra padding, to 8.)
-			#So I can store 3 per "instruction" here and not break later stages.
-			for i in range((len(chars) + 2) // 3): #Always round UP.
-				startIDX:int = i*3;
-				charTriple:list[int] = chars[startIDX:startIDX+3];
-				charTriple.extend([0 for _ in range(3-len(charTriple))]); #Make sure it is always 3 long.
-				binChars = [format(x, "08b") for x in charTriple];
-				instructions.append("".join(binChars)); #Make new fake instruction for these 3 characters.
-
-			return tuple(instructions);
 
 
 		case _:
@@ -621,7 +613,7 @@ def replaceAliases(lines):
 
 
 
-def getHeader(numberOfInstructions:int, graphicsMode:str="NONE") -> str:
+def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegments:int=1) -> str:
 	"Gets the header for this file, containing some metadata and an identifier string."
 
 	def STRtoBinary(s:str) -> str: return "".join([format(charSet.index(x)&0xFF, "08b") for x in s]);
@@ -644,6 +636,7 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE") -> str:
 	VERSION:str = INTtoBinary(2, bits=8); #Version 2 of this CFAB format. [CFABv2]. 8 bits.
 	INSTR:str = INTtoBinary(numberOfInstructions, bits=16); #16 bits.
 	MODE:str = INTtoBinary(modeIndex, bits=2); #2 bits.
+	ROMSEGS:str = INTtoBinary(numberOfROMSegments, bits=14); #14 bits.
 
 	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE);
 	PADDING:str = "0" * (HEADER_LENGTH-totalUsed); #Pad to HEADER_LENGTH bits.
@@ -715,18 +708,32 @@ if __name__ == "__main__":
 	del macros, markers
 	del aliasReplaced
 
+	#Add the END index to the ROM_INDEX set.
+	ROM_INDEX.append(format(len(ROM_DATA), "016b"));
+
 	
 	#Make the list of hex instructions into a set of bytes.
 	numberOfInstructions:int = len(fabricated);
-	combinedHex = getHeader(numberOfInstructions, graphicsMode);
-	for hexInstruction in fabricated:
-		combinedHex += hexInstruction
+	instructionHex:str = getHeader(
+		numberOfInstructions,
+		graphicsMode+"".join(fabricated),
+		len(ROM_INDEX)-1 #Number of ROM segments. Will always have 1 extra for the END index.
+	);
+	ROMindexHex:str = "".join(ROM_INDEX);
+	ROMdataHex:str = "".join([format(x, "08x") for x in ROM_DATA]);
 
-	if (len(combinedHex) % 2): combinedHex += "0"; #Even length.
-	combinedBytes = bytes.fromhex(combinedHex)
+	print(ROM_DATA)
 
-	print(f"Fabrication complete.\nWrote {len(combinedBytes)} bytes [{len(combinedBytes)//3} instructions] to data/{outFileName}");
+	if (len(instructionHex) % 2): instructionHex += "0"; #Even length.
+	instructionBytes:bytes = bytes.fromhex(instructionHex);
+	ROMindexBytes:bytes = bytes.fromhex(ROMindexHex);
+	ROMdataBytes:bytes = bytes.fromhex(ROMdataHex);
+	totalBytes:int = len(instructionBytes) + len(ROMindexBytes) + len(ROMdataBytes);
+
+	print(f"Fabrication complete.\nWrote {totalBytes} bytes [{len(instructionBytes)//3} instructions] to data/{outFileName}");
 
 	with open(f"data/{outFileName}", "wb") as outFile:
 		#Write to a file.
-		outFile.write(combinedBytes)
+		outFile.write(instructionBytes)
+		outFile.write(ROMindexBytes)
+		outFile.write(ROMdataBytes)
