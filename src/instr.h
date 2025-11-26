@@ -392,9 +392,9 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 		std::string freqStr = (freq > 1.0e3f) ? std::to_string(freq / 1000.0f)+"k" : std::to_string(freq);
 
 		std::cout << std::endl;
-		std::cout << "Executed:  \033[1;35m" << std::to_string(numExecuted) << " instructions\033[0;m" << std::endl;
-		std::cout << "Elapsed:   \033[1;35m" << elapsed.count() << "ms\033[0;m" << std::endl;
-		std::cout << "Frequency: \033[1;35m" << freqStr << "Hz\033[0;m" << std::endl;
+		std::cout << "\033[1;30mExecuted:  \033[1;35m" << std::to_string(numExecuted) << " instructions\033[0;m" << std::endl;
+		std::cout << "\033[1;30mElapsed:   \033[1;35m" << elapsed.count() << "ms\033[0;m" << std::endl;
+		std::cout << "\033[1;30mFrequency: \033[1;35m" << freqStr << "Hz\033[0;m" << std::endl;
 		std::cout << std::endl;
 	}
 }
