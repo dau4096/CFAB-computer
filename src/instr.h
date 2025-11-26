@@ -275,7 +275,7 @@ Ia | Ib | F B | I N S T R |
 						if (index < 0xFFu) {
 							std::cout << char(index) << std::flush;
 							needsNewLN = true;
-						} else if (index == 0xFFu) {
+						} else if (index == 0x0Au) {
 							//Newline char
 							std::cout << std::endl;
 							needsNewLN = false;
@@ -287,19 +287,10 @@ Ia | Ib | F B | I N S T R |
 						std::pair<uint16_t, uint16_t> ROMindexPair = readOnlyMemoryIndices[ROMsegmentIndex];
 						uint16_t numberOfCharacters = ROMindexPair.second - ROMindexPair.first;
 
-						std::vector<uint8_t> characters(numberOfCharacters);
-						std::copy_n(std::next(readOnlyMemory.begin(), ROMindexPair.first), numberOfCharacters, characters.begin());
-						for (uint8_t index : characters) {
-							if (index < 0xFFu) {
-								std::cout << char(index);
-								needsNewLN = true;
-							} else if (index == 0xFFu) {
-								//Newline char
-								std::cout << std::endl;
-								needsNewLN = false;
-							}
-						}
-						std::cout << std::flush;
+						std::cout.write(
+							reinterpret_cast<const char*>(&readOnlyMemory[ROMindexPair.first]),
+							numberOfCharacters
+						);
 					}
 				}
 			}

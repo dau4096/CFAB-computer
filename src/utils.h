@@ -121,9 +121,8 @@ bool loadInstructions(std::vector<uint8_t>& byteData, std::vector<unsigned int>*
 bool loadROMIndices(const std::vector<uint8_t>& byteData, size_t romIndexOffset) {
 	readOnlyMemoryIndices.clear();
 	readOnlyMemoryIndices.reserve(metaData.numberOfROMSegments + 1u);
-	std::cout << std::to_string(metaData.numberOfROMSegments) << std::endl;
 
-	for (uint16_t ROMsegmentIndex=0u; ROMsegmentIndex<(metaData.numberOfROMSegments+1u); ROMsegmentIndex++) {
+	for (uint16_t ROMsegmentIndex=0u; ROMsegmentIndex<(metaData.numberOfROMSegments); ROMsegmentIndex++) {
 		size_t idx = romIndexOffset + (ROMsegmentIndex * 2u);
 		if ((idx+3u) >= byteData.size()) {
 			std::cout << "Tried to read ROM segment indices past end of file." << std::endl;
@@ -135,7 +134,7 @@ bool loadROMIndices(const std::vector<uint8_t>& byteData, size_t romIndexOffset)
 
 		readOnlyMemoryIndices.emplace_back(start, end);
 
-		std::cout << "Segment " << std::to_string(ROMsegmentIndex) << ": [" << std::to_string(start) << " : " << std::to_string(end) << "]\n";
+		if (verbose) {std::cout << "Segment " << std::to_string(ROMsegmentIndex) << ": [" << std::to_string(start) << " : " << std::to_string(end) << "]\n";}
 	}
 	std::cout<<std::flush;
 
@@ -145,13 +144,14 @@ bool loadROMIndices(const std::vector<uint8_t>& byteData, size_t romIndexOffset)
 
 
 bool loadROMData(std::vector<uint8_t>& byteData, size_t romIndexOffset) {
-	size_t romDataOffset = romIndexOffset + (readOnlyMemoryIndices.size() * 4u);
+	size_t romDataOffset = romIndexOffset + ((metaData.numberOfROMSegments + 1u) * 2u);
 	if (romDataOffset >= byteData.size()) {
 		std::cout << "Tried to read ROM segment data past end of file." << std::endl;
 		return false;
 	}
 
 	readOnlyMemory.assign(byteData.begin() + romDataOffset, byteData.end());
+
 
 	return true;
 }
@@ -177,8 +177,10 @@ bool loadCFABFile(const std::string& filePath, std::vector<unsigned int>* instru
 	if (!validFile) {std::cout << "File header invalid. If this is an old .dat file, please re-fabricate with a newer fabricator version." << std::endl; return false;}
 
 	//Print metadata;
-	std::cout << "FilePath: [" << metaData.filePath << "], Version " << std::to_string(metaData.version);
-	std::cout << ", Contains " << std::to_string(metaData.numberOfInstructions) << " instructions, GMIDX [" << std::to_string(metaData.graphicsModeIndex) << "]" << std::endl;
+	if (verbose) {
+		std::cout << "\033[1;30m<METADATA [FilePath: [" << metaData.filePath << "], Version " << std::to_string(metaData.version);
+		std::cout << ", Contains " << std::to_string(metaData.numberOfInstructions) << " instructions, GMIDX [" << std::to_string(metaData.graphicsModeIndex) << "]]>\033[0;m" << std::endl;
+	}
 
 	bool successINSTR = loadInstructions(byteData, instructionData);
 	if (!successINSTR) {return false;}

@@ -115,7 +115,7 @@ def toBin(value:int) -> str:
 
 
 
-def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str=""):
+def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="", shouldAddToROM:bool=True):
 	BLANK:str = "00000000";
 	REG_RESULT:str = toBin(63);
 
@@ -343,23 +343,15 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 
 		case "print":
 			#Writes text to console. Uses ROM at the end of the file.
-			text:str = ln.split('"')[1].replace('"','').replace("\\n", "$");
+			text:str = ln.split('"')[1].replace('"','');
+			if (not shouldAddToROM): return ("1011" + opcodes["i_o"] + BLANK + BLANK);
 
 			ROM_INDEX.append(format(len(ROM_DATA), "04x")); #First byte of this ROM section.
 			ROMidx:int = len(ROM_INDEX)-1; #Add to end of index. Take last index.
 			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK,)
 
-			for char in text:
-				charIDX:int = 0;
-				if (char == "$"):
-					#Newlines
-					charIDX = 0xFF;
-				else:
-					try:
-						charIDX:int = ord(char);
-					except ValueError:
-						raise FabricationError(f"Could not find character: [{char}]")
-				ROM_DATA.append(format(charIDX, "08b"));
+			text = text.replace("\\n", "\n"); #Replace with actual 0x0A newline chars;
+			ROM_DATA.extend([format(ord(char), "08b") for char in text]);
 
 			return instructions;
 
@@ -441,7 +433,7 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
-	instructionList = convertAllToBin(operator, immediates, A, B, ln=line);
+	instructionList = convertAllToBin(operator, immediates, A, B, ln=line, shouldAddToROM=makeHex);
 	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
 
 	return hexList
