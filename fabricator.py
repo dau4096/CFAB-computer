@@ -78,7 +78,6 @@ infixOperatorsList = {
 	">>": "rsh", "<<": "lsh"
 }
 
-charSet:str = r"0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
 
 global graphicsMode, ROM_DATA, ROM_INDEX;
 graphicsMode = "NONE";
@@ -346,21 +345,21 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="")
 			#Writes text to console. Uses ROM at the end of the file.
 			text:str = ln.split('"')[1].replace('"','').replace("\\n", "$");
 
-			ROM_INDEX.append(format(len(ROM_DATA), "016b")); #First byte of this ROM section.
+			ROM_INDEX.append(format(len(ROM_DATA), "04x")); #First byte of this ROM section.
 			ROMidx:int = len(ROM_INDEX)-1; #Add to end of index. Take last index.
-			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK)
+			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK,)
 
 			for char in text:
 				charIDX:int = 0;
 				if (char == "$"):
 					#Newlines
-					charIDX = len(charSet);
+					charIDX = 0xFF;
 				else:
 					try:
-						charIDX:int = charSet.index(char);
+						charIDX:int = ord(char);
 					except ValueError:
 						raise FabricationError(f"Could not find character: [{char}]")
-				ROM_DATA.append(charIDX);
+				ROM_DATA.append(format(charIDX, "08b"));
 
 			return instructions;
 
@@ -616,12 +615,12 @@ def replaceAliases(lines):
 def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegments:int=1) -> str:
 	"Gets the header for this file, containing some metadata and an identifier string."
 
-	def STRtoBinary(s:str) -> str: return "".join([format(charSet.index(x)&0xFF, "08b") for x in s]);
+	def STRtoBinary(s:str) -> str: return "".join([format(ord(x)&0xFF, "08b") for x in s]);
 	def INTtoBinary(i:int, bits:int) -> str: return f"{i & ((1 << bits) - 1):0{bits}b}"
-	def BINtoHexade(binary: str) -> str: return "".join(f"{int(binary[i:i+4], 2):X}" for i in range(0, len(binary), 4));
+	def BINtoHexade(binary: str) -> str: return format(int(binary, 2), f"0{len(binary)//4}x");
 
 
-	HEADER_LENGTH = 64; #MUST be multiple of 4.
+	HEADER_LENGTH = 72; #MUST be multiple of 4.
 
 
 	modeMap:tuple[str] = ("NONE", "TEXT", "256C", "RGB");
@@ -633,17 +632,18 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegm
 
 	#Header parts
 	IDENT:str = STRtoBinary("CFAB"); #32 bits.
-	VERSION:str = INTtoBinary(2, bits=8); #Version 2 of this CFAB format. [CFABv2]. 8 bits.
+	VERSION:str = INTtoBinary(3, bits=8); #Version 3 of this CFAB format. [CFABv2]. 8 bits.
 	INSTR:str = INTtoBinary(numberOfInstructions, bits=16); #16 bits.
 	MODE:str = INTtoBinary(modeIndex, bits=2); #2 bits.
-	ROMSEGS:str = INTtoBinary(numberOfROMSegments, bits=14); #14 bits.
+	ROMSEGS:str = INTtoBinary(numberOfROMSegments, bits=10); #10 bits.
 
-	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE);
+
+
+	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE)+len(ROMSEGS);
 	PADDING:str = "0" * (HEADER_LENGTH-totalUsed); #Pad to HEADER_LENGTH bits.
 
-
 	#Convert to HexaDe(cimal)
-	return BINtoHexade(IDENT + VERSION + INSTR + MODE + PADDING);
+	return BINtoHexade(IDENT + VERSION + INSTR + MODE + ROMSEGS + PADDING);
 
 
 
@@ -699,41 +699,43 @@ if __name__ == "__main__":
 			].index(curLine)
 
 
-	fabricated = []
+	instructionHexList:list[str] = [];
 	for line in aliasReplaced:
 		if not line.startswith(":"):
 			#Convert lines using convertLine().
-			fabricated.extend(convertLine(line)) #1 line of CFAB can correspond to multiple instructions
+			instructionHexList.extend(convertLine(line)) #1 line of CFAB can correspond to multiple instructions
 
 	del macros, markers
 	del aliasReplaced
 
 	#Add the END index to the ROM_INDEX set.
-	ROM_INDEX.append(format(len(ROM_DATA), "016b"));
-
+	ROM_INDEX.append(format(len(ROM_DATA), "04x")); #16-bit.
 	
 	#Make the list of hex instructions into a set of bytes.
-	numberOfInstructions:int = len(fabricated);
-	instructionHex:str = getHeader(
+	numberOfInstructions:int = len(instructionHexList); #6 hex values per instr (3 bytes)
+	instructionHex:str = "".join(instructionHexList);
+	headerHex:str = getHeader(
 		numberOfInstructions,
-		graphicsMode+"".join(fabricated),
+		graphicsMode,
 		len(ROM_INDEX)-1 #Number of ROM segments. Will always have 1 extra for the END index.
 	);
 	ROMindexHex:str = "".join(ROM_INDEX);
-	ROMdataHex:str = "".join([format(x, "08x") for x in ROM_DATA]);
+	ROMdataHex:str = "".join([format(int(x,2), "02x") for x in ROM_DATA]); #8-bit.
 
-	print(ROM_DATA)
 
 	if (len(instructionHex) % 2): instructionHex += "0"; #Even length.
+	headerBytes:bytes = bytes.fromhex(headerHex);
 	instructionBytes:bytes = bytes.fromhex(instructionHex);
 	ROMindexBytes:bytes = bytes.fromhex(ROMindexHex);
 	ROMdataBytes:bytes = bytes.fromhex(ROMdataHex);
 	totalBytes:int = len(instructionBytes) + len(ROMindexBytes) + len(ROMdataBytes);
 
-	print(f"Fabrication complete.\nWrote {totalBytes} bytes [{len(instructionBytes)//3} instructions] to data/{outFileName}");
+	print(f"Fabrication complete.\nWrote {totalBytes} bytes [{numberOfInstructions} instructions] to data/{outFileName}");
+
 
 	with open(f"data/{outFileName}", "wb") as outFile:
 		#Write to a file.
-		outFile.write(instructionBytes)
-		outFile.write(ROMindexBytes)
-		outFile.write(ROMdataBytes)
+		outFile.write(headerBytes);
+		outFile.write(instructionBytes);
+		outFile.write(ROMindexBytes);
+		outFile.write(ROMdataBytes);

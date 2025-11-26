@@ -71,23 +71,23 @@ bool parseHeader(std::array<uint8_t, HEADER_LENGTH_BYTES>& header, const std::st
 
 	//Hex codes for encoded "CFAB" string.
 	bool hasIdentifier = (
-		(header[0u] == 0x27u) && //"C"
-		(header[1u] == 0x2Au) && //"F"
-		(header[2u] == 0x25u) && //"A"
-		(header[3u] == 0x26u)    //"B"
+		(header[0u] == 0x43u) && //"C"
+		(header[1u] == 0x46u) && //"F"
+		(header[2u] == 0x41u) && //"A"
+		(header[3u] == 0x42u)    //"B"
 	);
 
-	metaData.version = header[4u];
+	metaData.version = header[4u]; //5th byte
 	bool versionValid = (metaData.version >= 2u); //Versions before 2 do not have a header.
 
-	metaData.numberOfInstructions = (static_cast<uint16_t>(header[5u]) << 8u) | static_cast<uint16_t>(header[6u]);
+	metaData.numberOfInstructions = (static_cast<uint16_t>(header[5u]) << 8u) | static_cast<uint16_t>(header[6u]); //Next 16 bits.
 	bool numInstructionsValid = (
 		(metaData.numberOfInstructions > 0u) &&
-		(numberOfReadBytes >= (HEADER_LENGTH_BYTES+(metaData.numberOfInstructions*3)))
+		(numberOfReadBytes >= (HEADER_LENGTH_BYTES+(metaData.numberOfInstructions*3u)))
 	);
 
 	metaData.graphicsModeIndex = header[7u] & 0xC0u; //First 2 bits of this byte.
-	metaData.numberOfROMSegments = (static_cast<uint16_t>((header[7u]&0x03u)) << 8u) | static_cast<uint16_t>(header[8u]); //Next 14 bytes.
+	metaData.numberOfROMSegments = (static_cast<uint16_t>((header[7u]&0x3Fu)) << 4u) | ((static_cast<uint16_t>(header[8u]) & 0xF0u) >> 4u); //Next 10 bytes.
 
 	return hasIdentifier && versionValid && numInstructionsValid;
 
@@ -101,7 +101,7 @@ bool loadInstructions(std::vector<uint8_t>& byteData, std::vector<unsigned int>*
 	for (unsigned int instructionIndex=0u; instructionIndex<metaData.numberOfInstructions; instructionIndex++) {
 		unsigned int byteIndex = HEADER_LENGTH_BYTES + instructionIndex * 3;
 		if (byteIndex+2u >= byteData.size()) {
-			std::cout << "Tried to read past end of file. Exiting.." << std::endl;
+			std::cout << "Tried to read instructions past end of file." << std::endl;
 			return false;
 		}
 
@@ -113,29 +113,45 @@ bool loadInstructions(std::vector<uint8_t>& byteData, std::vector<unsigned int>*
 
 		instructionData->push_back(instruction);
 	}
-}
 
-
-bool loadROMIndices(std::vector<uint8_t>& byteData, size_t numberOfInstructionBytes) {
-	for (uint16_t ROMsegmentIndex=0u; ROMsegmentIndex<metaData.numberOfROMSegments; ROMsegmentIndex++) {
-		size_t thisIndex = numberOfInstructionBytes + (ROMsegmentIndex * 2u);
-		if (thisIndex+3 >= byteData.size()) {return false;}
-		readOnlyMemoryIndices.push_back(std::make_pair(
-			(static_cast<uint16_t>(byteData[thisIndex+0]) << 8u) | static_cast<uint16_t>(byteData[thisIndex+1]),
-			(static_cast<uint16_t>(byteData[thisIndex+2]) << 8u) | static_cast<uint16_t>(byteData[thisIndex+3]),
-		));
-	}
 	return true;
 }
 
 
-bool loadROMData(std::vector<uint8_t>& byteData, size_t numberOfInstructionBytes) {
-	size_t startOfROMData = numberOfInstructionBytes + readOnlyMemoryIndices.back().second;
-	if (startOfROMData >= byteData.size()) {return false;}
+bool loadROMIndices(const std::vector<uint8_t>& byteData, size_t romIndexOffset) {
+	readOnlyMemoryIndices.clear();
+	readOnlyMemoryIndices.reserve(metaData.numberOfROMSegments + 1u);
+	std::cout << std::to_string(metaData.numberOfROMSegments) << std::endl;
 
-	size_t numberOfROMBytes = byteData.size() - startOfROMData;
-	readOnlyMemory = std::vector<uint8_t>(numberOfROMBytes);
-	std::copy(byteData.begin()+startOfROMData, byteData.end(), readOnlyMemory.begin());
+	for (uint16_t ROMsegmentIndex=0u; ROMsegmentIndex<(metaData.numberOfROMSegments+1u); ROMsegmentIndex++) {
+		size_t idx = romIndexOffset + (ROMsegmentIndex * 2u);
+		if ((idx+3u) >= byteData.size()) {
+			std::cout << "Tried to read ROM segment indices past end of file." << std::endl;
+			return false;
+		}
+
+		uint16_t start = (byteData[idx+0u] << 8u) | byteData[idx+1u];
+		uint16_t end = (byteData[idx+2u] << 8u) | byteData[idx+3u];
+
+		readOnlyMemoryIndices.emplace_back(start, end);
+
+		std::cout << "Segment " << std::to_string(ROMsegmentIndex) << ": [" << std::to_string(start) << " : " << std::to_string(end) << "]\n";
+	}
+	std::cout<<std::flush;
+
+	return true;
+}
+
+
+
+bool loadROMData(std::vector<uint8_t>& byteData, size_t romIndexOffset) {
+	size_t romDataOffset = romIndexOffset + (readOnlyMemoryIndices.size() * 4u);
+	if (romDataOffset >= byteData.size()) {
+		std::cout << "Tried to read ROM segment data past end of file." << std::endl;
+		return false;
+	}
+
+	readOnlyMemory.assign(byteData.begin() + romDataOffset, byteData.end());
 
 	return true;
 }
@@ -144,7 +160,10 @@ bool loadROMData(std::vector<uint8_t>& byteData, size_t numberOfInstructionBytes
 bool loadCFABFile(const std::string& filePath, std::vector<unsigned int>* instructionData) {
 	//Read file
 	std::vector<uint8_t> byteData;
-	if (!loadBytesData(filePath, byteData)) {return false; /* Failed to read bytes. */}
+	if (!loadBytesData(filePath, byteData)) {
+		std::cout << "Failed to read bytes from file." << std::endl;
+		return false;
+	}
 
 
 	//Parse the header.
@@ -165,7 +184,7 @@ bool loadCFABFile(const std::string& filePath, std::vector<unsigned int>* instru
 	if (!successINSTR) {return false;}
 
 
-	size_t numberOfInstructionBytes = metaData.numberOfInstructions * 3u;
+	size_t numberOfInstructionBytes = HEADER_LENGTH_BYTES + metaData.numberOfInstructions * 3u;
 	bool successROMIDX = loadROMIndices(byteData, numberOfInstructionBytes);
 	if (!successROMIDX) {return false;}
 
