@@ -78,7 +78,10 @@ infixOperatorsList = {
 	">>": "rsh", "<<": "lsh"
 }
 
-charSet:str = "0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
+charSet:str = r"0123456789 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ?+-*/!^%&|=()[]~@'`<>,.:;";
+
+global graphicsMode;
+graphicsMode = "NONE";
 
 
 class FabricationError(Exception):
@@ -402,7 +405,7 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
-	instructionList = convertAllToBin(operator, immediates, A, B, ln=line)
+	instructionList = convertAllToBin(operator, immediates, A, B, ln=line);
 	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
 
 	return hexList
@@ -502,6 +505,8 @@ def replaceMacros(lines, depth=0, activeMacros=None, previousMacro=None):
 
 
 def replaceAliases(lines):
+	global graphicsMode;
+
 	aliases:dict[str,int] = {};
 	aliasReplaced:list[str] = [];
 	unassignedAliases:set[str] = set();
@@ -515,6 +520,11 @@ def replaceAliases(lines):
 	Can also be defined without explicit register address, and will be automatically assigned an address.
 	"""
 	for (lineNum, curLine) in enumerate(lines):
+		if (regex.match(r"(?i)^MODE\s.*$", curLine) is not None):
+			#Line contains the graphicsMode value.
+			graphicsMode = curLine.split(" ")[1].upper();
+
+
 		operands = curLine.split(" ");
 		for operand in operands:
 			res = regex.match(rf"(?i)\$[a-z0-9]+(?=$|\W)", operand);
@@ -566,9 +576,42 @@ def replaceAliases(lines):
 
 
 
+def getHeader(numberOfInstructions:int, graphicsMode:str="NONE") -> str:
+	"Gets the header for this file, containing some metadata and an identifier string."
+
+	def STRtoBinary(s:str) -> str: return "".join([format(charSet.index(x)&0xFF, "08b") for x in s]);
+	def INTtoBinary(i:int, bits:int) -> str: return f"{i & ((1 << bits) - 1):0{bits}b}"
+	def BINtoHexade(binary: str) -> str: return "".join(f"{int(binary[i:i+4], 2):X}" for i in range(0, len(binary), 4));
+
+
+	HEADER_LENGTH = 64; #MUST be multiple of 4.
+
+
+	modeMap:tuple[str] = ("NONE", "TEXT", "256C", "RGB");
+	modeIndex:int = 0;
+	try: modeMap.index(graphicsMode.upper());
+	except ValueError: modeIndex = 0; #Default to GM_NONE.
+	modeIndex &= 0x3; #2 bits.
+
+
+	#Header parts
+	IDENT:str = STRtoBinary("CFAB"); #32 bits.
+	VERSION:str = INTtoBinary(2, bits=8); #Version 2 of this CFAB format. [CFABv2]. 8 bits.
+	INSTR:str = INTtoBinary(numberOfInstructions, bits=16); #16 bits.
+	MODE:str = INTtoBinary(modeIndex, bits=2); #2 bits.
+
+	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE);
+	PADDING:str = "0" * (HEADER_LENGTH-totalUsed); #Pad to HEADER_LENGTH bits.
+
+
+	#Convert to HexaDe(cimal)
+	return BINtoHexade(IDENT + VERSION + INSTR + MODE + PADDING);
+
+
+
 if __name__ == "__main__":
 
-	inFileName = "resqMod.cfab";
+	inFileName = "help.cfab";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
@@ -629,12 +672,12 @@ if __name__ == "__main__":
 
 	
 	#Make the list of hex instructions into a set of bytes.
-	combinedHex = ""
+	numberOfInstructions:int = len(fabricated);
+	combinedHex = getHeader(numberOfInstructions, graphicsMode);
 	for hexInstruction in fabricated:
 		combinedHex += hexInstruction
 
-	if len(combinedHex) % 2 == 1: combinedHex += "0"
-
+	if (len(combinedHex) % 2): combinedHex += "0"; #Even length.
 	combinedBytes = bytes.fromhex(combinedHex)
 
 	print(f"Fabrication complete.\nWrote {len(combinedBytes)} bytes [{len(combinedBytes)//3} instructions] to data/{outFileName}");
