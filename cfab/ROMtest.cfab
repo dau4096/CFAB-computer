@@ -1,0 +1,15 @@
+//8 bytes.
+ROM0 0123456789ABCDEF
+
+//Load segment 0 into RAM address 2 onward
+LOAD #0 #2
+
+//Copy RAM [2:10] to [11:]
+COPY #2 #10 #11
+
+//Clear RAM [2:10] to value 1
+RAMCLEAR #2 #10 #1
+
+
+//Test ROM still can be read from by PRINT.
+PRINT "Complete!"

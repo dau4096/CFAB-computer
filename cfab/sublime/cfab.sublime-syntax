@@ -14,7 +14,7 @@ contexts:
       scope: punctuation.definition.comment
       push:
         - meta_scope: comment.line
-        - match: $
+        - match: '$'
           pop: true
 
     #Strings
@@ -80,7 +80,7 @@ contexts:
       scope: keyword.operator
 
     #Other prefix
-    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|ramread|ramwrite|halt|sleep|wait|input|output|cout|print)\b'
+    - match: '\b(?i)(and|or|xor|xnor|gtr|lss|gte|lse|inv|mod|abs|sgn|jmp|ramread|ramwrite|halt|sleep|wait|input|output|cout|print|load|copy|ramclear)\b'
       scope: keyword.control
 
 
@@ -103,6 +103,13 @@ contexts:
 
     - match: '\b(?i)rOP\b'
       scope: variable.other
+
+    - match: '(?i)\bROM[0-9]+\b'
+      scope: variable.other
+      push:
+        - meta_scope: variable.constant
+        - match: '$'
+          pop: true
 
 
 

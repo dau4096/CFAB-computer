@@ -412,10 +412,6 @@ Ia | Ib | F B | I N S T R |
 					*result = 1; //Success
 					break;
 				}
-
-				case 3u: { //Unassigned
-					break;
-				}
 			}
 			
 			returnsValue = true;

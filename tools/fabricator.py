@@ -67,7 +67,7 @@ opcodes = {
 	"nop": "0000", "set": "0001", "mov": "0010", "add": "0011",
 	"sub": "0100", "mul": "0101", "div": "0110", "not": "0111",
 	"equ": "1000", "grt": "1001", "brn": "1010", "i_o": "1011",
-	"shf": "1100", "ext": "1101", "slp": "1110", "__f": "1111"
+	"shf": "1100", "ext": "1101", "slp": "1110", "mem": "1111"
 }
 
 infixOperatorsList = {
@@ -82,7 +82,7 @@ infixOperatorsList = {
 global graphicsMode, ROM_DATA, ROM_INDEX;
 graphicsMode = "NONE";
 ROM_INDEX = [] #Start index for this segment [16b]*. Needs to contain ROM_NUMBER + 1.
-ROM_DATA = []; #Static data, such as long text strings. [16b]*
+ROM_DATA = []; #Static data, such as long text strings. [8b]*
 
 
 class FabricationError(Exception):
@@ -116,8 +116,12 @@ def toBin(value:int) -> str:
 
 
 def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="", shouldAddToROM:bool=True):
-	BLANK:str = "00000000";
+	BLANK:str = "0"*8;
 	REG_RESULT:str = toBin(63);
+	REG_X:str = toBin(60);
+	REG_Y:str = toBin(61);
+	REG_Z:str = toBin(62);
+	REG_W:str = toBin(59);
 
 	try:
 		A = toBin(preA);
@@ -336,7 +340,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 			#Writes integer value to console
 			instructions:list[str] = [immediates[0] + "010" + opcodes["i_o"] + A + BLANK,];
 			if ((type(preB) == str) and (("$" in preB) or ("\\n" in preB))):
-				instructions.append("1011" + opcodes["i_o"] + toBin(len(charSet)) + BLANK); #COUT << NEWLINE instruction
+				instructions.append("1011" + opcodes["i_o"] + toBin(ord("\n")) + BLANK); #COUT << NEWLINE instruction
 
 			return tuple(instructions);
 
@@ -346,15 +350,62 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 			text:str = ln.split('"')[1].replace('"','');
 			if (not shouldAddToROM): return ("1011" + opcodes["i_o"] + BLANK + BLANK);
 
-			ROM_INDEX.append(format(len(ROM_DATA), "04x")); #First byte of this ROM section.
 			ROMidx:int = len(ROM_INDEX)-1; #Add to end of index. Take last index.
 			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK,)
 
 			text = text.replace("\\n", "\n"); #Replace with actual 0x0A newline chars;
-			ROM_DATA.extend([format(ord(char), "08b") for char in text]);
+			ROM_DATA.append([ord(char) for char in text]);
 
 			return instructions;
 
+
+		case "load": #Copy from ROM into RAM.
+			#Example: [LOAD #0 #2]
+			#Load ROM segment 0 into RAM [2:]
+			try:
+				ramAddress:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError:
+				ramAddress = preB;
+			return (
+				"0" + immediates[0] + "00" + opcodes["set"] + REG_X + A,  #Use "A" as the ROM segment.
+				"1110" + opcodes["mem"] + ramAddress, #Write to this ram address.
+			);
+
+
+		case "copy": #Copy from RAM into another area in RAM.
+			#Example: [COPY #2 #10 #11]
+			#Copy RAM [2:10] to [11:]
+			operands = ln.split(" ");
+			preC = convertValues(operands[3])[0];
+			try: srcStart:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError: srcStart = preA;
+			try: srcEnd:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError: srcEnd = preB;
+			try: destination:int = str(bin(preC & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError: destination = preC;
+			return (
+				"0100" + opcodes["set"] + REG_X + srcEnd[:8],
+				"0100" + opcodes["set"] + REG_Y + srcEnd[8:],
+				"0100" + opcodes["set"] + REG_Z + destination[:8],
+				"0100" + opcodes["set"] + REG_W + destination[8:],
+				"1101" + opcodes["mem"] + srcStart
+			);
+
+
+		case "ramclear": #Clear area of RAM to some value.
+			#Example: [RAMCLEAR #2 #10 #1]
+			#Clear values in RAM [2:10] to 1
+			operands = ln.split(" ");
+			try: srcStart:int = str(bin(preA & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError: srcStart = preA;
+			try: srcEnd:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
+			except TypeError: srcEnd = preB;
+			return (
+				"0100" + opcodes["set"] + REG_X + toBin(convertValues(operands[3])[0]),
+				"0100" + opcodes["set"] + REG_Y + srcEnd[:8],
+				"0100" + opcodes["set"] + REG_Z + srcEnd[8:],
+				"1100" + opcodes["mem"] + srcStart
+			);
 
 
 		case _:
@@ -391,11 +442,11 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 
 	if operands[0] in opcodes:
 		#Postfix
-		operator, A, B = operands
+		operator, A, B = operands[:3];
 
 	elif operands[1] in infixOperatorsList:
 		#Infix
-		A, operator, B = operands
+		A, operator, B = operands[:3];
 		operator = infixOperatorsList[operator]
 
 	elif (operands[0] == "if"):
@@ -408,13 +459,29 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 		A = "0";
 		B = "0";
 
+	elif (regex.match(r"(?i)ROM[0-9]+", operands[0]) is not None):
+		#ROM data definition, Hex.
+		if (makeHex):
+			index:int = int(operands[0].replace("rom",""));
+			hexData:str = "".join([(x if (x in "0123456789abcdef") else "") for x in "".join(operands[1:]).strip()]); #Completely ignores non-hex values.
+			if (len(hexData)%2): hexData += "0"; #Must end on a whole number of bytes.
+			intData:list[int] = [];
+			for i in range(len(hexData)//2): intData.append(int(hexData[i*2]+hexData[(i*2)+1], 16)); #Combines 2 hex digits to create an 8 bit number.
+			if (len(ROM_DATA)-1 >= index): ROM_DATA[index].extend(intData);
+			else: ROM_DATA.append(intData);
+		return [];
+
 	elif operands[0] in (
 		"ext", "inv", "sgn", "jmp", "clr", "ramwrite", "ramread",
-		"and", "or", "xnor", "halt", "sleep", "wait",
+		"and", "or", "xor", "xnor", "halt", "sleep", "wait",
 		"input", "output", "cout", "inc", "dec"
 	):
 		#Chained or unusual operators
-		operator, A, B = operands
+		operator, A, B = operands[:3];
+
+	elif operands[0] in ("load", "ramclear", "copy"):
+		#Chained or unusual operators with 3+ values
+		operator, A, B = operands[:3];
 
 
 
@@ -561,7 +628,7 @@ def replaceAliases(lines):
 
 	availableRegisters:list[str] = [f"r{x}" for x in range(59)]; #Does not include rOP, rX, rY, rZ and rW (r59-63) as they should NEVER be overwritten.
 	builtinRegisters:dict[str,str] = {
-		"rw": "r59", "rx": "r60", "ry": "r61"
+		"rw": "r59", "rx": "r60", "ry": "r61",
 		"rz": "r62", "rop": "r63",
 	};
 	for (lineNum, curLine) in enumerate(lines):
@@ -645,7 +712,7 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegm
 
 if __name__ == "__main__":
 
-	inFileName = "help.cfab";
+	inFileName = "ROMtest.cfab";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
@@ -657,7 +724,7 @@ if __name__ == "__main__":
 
 	print(f"Reading: cfab/{inFileName}");
 
-	with open(f"cfab/{inFileName}", "r") as CFABFile:
+	with open(f"../cfab/{inFileName}", "r") as CFABFile:
 		readlines = CFABFile.readlines()
 		partial_lines = [line.strip() for line in readlines if not line.strip().startswith("//")]
 		lines = [line for line in partial_lines if line != ""]
@@ -705,7 +772,11 @@ if __name__ == "__main__":
 	del aliasReplaced
 
 	#Add the END index to the ROM_INDEX set.
-	ROM_INDEX.append(format(len(ROM_DATA), "04x")); #16-bit.
+	sumIndex:int = 0;
+	for romDat in ROM_DATA:
+		ROM_INDEX.append(format(sumIndex, "04x"));
+		sumIndex += len(romDat);
+	#ROM_INDEX.append(format(len(ROM_DATA), "04x")); #16-bit.
 	
 	#Make the list of hex instructions into a set of bytes.
 	numberOfInstructions:int = len(instructionHexList); #6 hex values per instr (3 bytes)
@@ -716,7 +787,9 @@ if __name__ == "__main__":
 		len(ROM_INDEX)-1 #Number of ROM segments. Will always have 1 extra for the END index.
 	);
 	ROMindexHex:str = "".join(ROM_INDEX);
-	ROMdataHex:str = "".join([format(int(x,2), "02x") for x in ROM_DATA]); #8-bit.
+	ROM_DATA_FLAT:list[int] = [];
+	for ROM_SEGMENT in ROM_DATA: ROM_DATA_FLAT.extend(ROM_SEGMENT);
+	ROMdataHex:str = "".join([format(x, "02x") for x in ROM_DATA_FLAT]); #8-bit.
 
 
 	if (len(instructionHex) % 2): instructionHex += "0"; #Even length.
@@ -729,7 +802,7 @@ if __name__ == "__main__":
 	print(f"Fabrication complete.\nWrote {totalBytes} bytes [{numberOfInstructions} instructions] to data/{outFileName}");
 
 
-	with open(f"data/{outFileName}", "wb") as outFile:
+	with open(f"../data/{outFileName}", "wb") as outFile:
 		#Write to a file.
 		outFile.write(headerBytes);
 		outFile.write(instructionBytes);
