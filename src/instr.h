@@ -326,13 +326,13 @@ Ia | Ib | F B | I N S T R |
 				}
 				case 2u: { //RAMwrite
 					//Writes value in result register to RAM address (A<<8)|B
-					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_12;
+					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
 					randomAccessMemory[RAMaddr] = registers[REG_RESULT];
 					break;
 				}
 				case 3u: { //RAMread
 					//Reads value from RAM address (A<<8)|B to result register
-					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_12;
+					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
 					(*result) = randomAccessMemory[RAMaddr];
 					returnsValue = true;
 					break;
@@ -343,6 +343,7 @@ Ia | Ib | F B | I N S T R |
 
 		case SLP: { //Sleep until event, or for specified time.
 			if (accessBit(flagBits, 0u)) { //Wait for user input
+				//TBA
 			} else { //Wait specified number of ms
 				unsigned int sleepMS = get16Bit(Aptr, Bptr);
 				std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
@@ -351,7 +352,73 @@ Ia | Ib | F B | I N S T R |
 		}
 
 
-		case __F: { //Currently unassigned, acts as NOP.
+		case MEM: { //Bulk memory management.
+			uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
+			*result = 0; //Default to no-success.
+
+			switch (flagBits) {
+				case 0u: { //Clear section of RAM.
+					int8_t clearValue = registers[REG_X];
+					uint16_t RAMend = get16Bit(&registers[REG_Y], &registers[REG_Z]) & BITS_RAM;
+					//Start at RAMaddr, end at RAMend.
+					std::fill(
+						std::next(randomAccessMemory.begin(), RAMaddr),
+						std::next(randomAccessMemory.begin(), RAMend),
+						clearValue
+					);
+					*result = 1; //Success
+					break;
+				}
+
+				case 1u: { //Copy section of RAM.
+					uint16_t RAMend = get16Bit(&registers[REG_X], &registers[REG_Y]) & BITS_RAM;
+					uint16_t RAMnew = get16Bit(&registers[REG_Z], &registers[REG_W]) & BITS_RAM;
+
+					uint16_t copySize = RAMend - RAMaddr;
+					uint16_t freeSpace = RAM_COUNT - RAMnew;
+					if (copySize > freeSpace) {
+						break; //Fail
+					}
+
+					std::copy_n(
+						std::next(randomAccessMemory.begin(), RAMaddr),
+						copySize,
+						std::next(randomAccessMemory.begin(), RAMnew)
+					);
+
+					*result = 1; //Success
+					break;
+				}
+
+				case 2u: { //Copy section of ROM into RAM.
+					uint8_t ROMsegmentIndex = registers[REG_X];
+
+					if (ROMsegmentIndex >= readOnlyMemoryIndices.size()) {
+						break; //Fail
+					}
+					std::pair<uint16_t, uint16_t> ROMindexPair = readOnlyMemoryIndices[ROMsegmentIndex];
+					uint16_t copySize = ROMindexPair.second - ROMindexPair.first;
+					uint16_t freeSpace = RAM_COUNT - RAMaddr;
+					if (copySize > freeSpace) {
+						break; //Fail
+					}
+
+					std::copy_n(
+						std::next(readOnlyMemory.begin(), ROMindexPair.first),
+						copySize,
+						std::next(randomAccessMemory.begin(), RAMaddr)
+					);
+					
+					*result = 1; //Success
+					break;
+				}
+
+				case 3u: { //Unassigned
+					break;
+				}
+			}
+			
+			returnsValue = true;
 			break;
 		}
 

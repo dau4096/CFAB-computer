@@ -559,7 +559,11 @@ def replaceAliases(lines):
 			if (res is not None): #Alias found
 				unassignedAliases.add(res.group(0));
 
-	availableRegisters = [f"r{x}" for x in range(63)]; #Does not include rOP (r63) as it should NEVER be overwritten.
+	availableRegisters:list[str] = [f"r{x}" for x in range(59)]; #Does not include rOP, rX, rY, rZ and rW (r59-63) as they should NEVER be overwritten.
+	builtinRegisters:dict[str,str] = {
+		"rw": "r59", "rx": "r60", "ry": "r61"
+		"rz": "r62", "rop": "r63",
+	};
 	for (lineNum, curLine) in enumerate(lines):
 		#Defined alias explicitly
 		operands = curLine.split(" ");
@@ -568,7 +572,7 @@ def replaceAliases(lines):
 			aliases[aliasName] = operands[2]
 			unassignedAliases.remove(operands[0]); #Remove alias from list, user defined.
 			idx:str = "";
-			if (operands[2].lower() == "rop"): idx = "r63";
+			if (operands[2].lower() in builtinRegisters): idx = builtinRegisters[operands[2].lower()];
 			else: idx = operands[2];
 			availableRegisters.remove(idx)
 

@@ -18,6 +18,9 @@ using namespace std;
 #define BITS_12 0xFFF
 #define BITS_16 0xFFFF
 
+#define FALSE 0
+#define TRUE 1
+
 #define FILE_PATH "data/help.dat"
 #define HEADER_LENGTH_BYTES 9u /* 72 bits. */
 
@@ -44,9 +47,7 @@ using namespace std;
 #define SHF 0xCu
 #define EXT 0xDu
 #define SLP 0xEu
-
-//Not assigned yet;
-#define __F 0xFu
+#define MEM 0xFu
 
 //////// OPCODES ////////
 
@@ -59,10 +60,16 @@ using namespace std;
 //REGISTERS
 #define REG_COUNT 64u /* 2^6 */
 #define REG_RESULT 63u /* Last index, stores result of last instruction if it returned one. */
+//Used when 16 bits of operand arent enough.
+#define REG_Z 62u
+#define REG_Y 61u
+#define REG_X 60u
+#define REG_W 59u
 
 
 //RAM
 #define RAM_COUNT 4096u /* 2^12 */
+#define BITS_RAM BITS_12
 //SCREEN [RAM]
 #define SCREEN_INDEX 3584u /* 0xE00, 512 bytes at the end of the RAM. */
 #define SCREEN_WIDTH 32u
