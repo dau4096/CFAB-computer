@@ -11,7 +11,7 @@ def hxd(value:int) -> str:
 
 global ROMdataFormat;
 ROMdataFormat = hxd;
-global INSTR_TABLE, ROM_SEG_TABLE, ROM_DAT_TABLE;
+global INSTR_TABLE, ROM_SEG_TABLE, ROM_DAT_TABLE, ROOT;
 
 
 class Header:
@@ -58,8 +58,13 @@ class Operand:
 
 
 	def __str__(self) -> str:
-		if (self.immediate): return f"#{self.value}";
-		else: return f"r{self.index}";
+		regMap:dict[int,str] = {
+			63: "RESULT",
+			59: "X", 60: "Y", 61: "Z", 62:"W"
+		};
+		if (self.immediate): return str(self.value);
+		elif (self.index in regMap): return regMap[self.index]; 
+		else: return f"Register {self.index}";
 
 	def __repr__(self) -> str: return str(self);
 
@@ -232,23 +237,26 @@ def selectFile() -> None:
 	displayInstructions(results);
 	displayMetadata(results["Metadata"]);
 	displayROMSegments(results);
-	ROM_DAT_TABLE.currentResults = results
-	displayROMDataGeneric(results, ROMdataFormat)
+	ROM_DAT_TABLE.currentResults = results;
+	displayROMDataGeneric(results, ROMdataFormat);
+
+	projIndex = path.find("Documents");
+	ROOT.title(f"CFABv2 Inspector - Viewing [~/{path[projIndex:]}]");
 
 
 
 if (__name__ == "__main__"):
-	root:ttkb.Window = ttkb.Window(title="CFABv2 Inspector", themename="darkly") 
-	root.title("CFABv2 Inspector");
-	root.geometry("800x400");
-	root.minsize(800, 400);
+	ROOT:ttkb.Window = ttkb.Window(title="CFABv2 Inspector", themename="darkly")
+	ROOT.title("CFABv2 Inspector");
+	ROOT.geometry("800x400");
+	ROOT.minsize(800, 400);
 
 	style = ttkb.Style();
 	style.configure("Treeview", rowheight=24);
 	ROW_COLOR_1:str = "#404040";
 	ROW_COLOR_2:str = "#505050";
 
-	mainContainer:ttk.Frame = ttk.Frame(root);
+	mainContainer:ttk.Frame = ttk.Frame(ROOT);
 	mainContainer.pack(fill="both", expand=True);
 
 	instructionsFrame:ttk.Frame = ttk.Frame(mainContainer);
@@ -259,7 +267,7 @@ if (__name__ == "__main__"):
 		instructionsFrame, metadataFrame, ROMsegmentsFrame, ROMdataFrame,
 	): frame.place(relx=0, rely=0, relwidth=1, relheight=1);
 
-	tabBar = ttk.Frame(root);
+	tabBar = ttk.Frame(ROOT);
 	tabBar.pack(side="bottom", fill="x");
 
 	def bringROMdataFrameToFront(t:type) -> None:
@@ -348,4 +356,4 @@ if (__name__ == "__main__"):
 
 
 
-	root.mainloop();
+	ROOT.mainloop();
