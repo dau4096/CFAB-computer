@@ -712,7 +712,7 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegm
 
 if __name__ == "__main__":
 
-	inFileName = "ROMtest.cfab";
+	inFileName = "testloop.cfab";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
@@ -784,7 +784,7 @@ if __name__ == "__main__":
 	headerHex:str = getHeader(
 		numberOfInstructions,
 		graphicsMode,
-		len(ROM_INDEX)-1 #Number of ROM segments. Will always have 1 extra for the END index.
+		max(len(ROM_INDEX)-1,0) #Number of ROM segments. Will always have 1 extra for the END index.
 	);
 	ROMindexHex:str = "".join(ROM_INDEX);
 	ROM_DATA_FLAT:list[int] = [];

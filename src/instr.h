@@ -287,6 +287,8 @@ Ia | Ib | F B | I N S T R |
 						std::pair<uint16_t, uint16_t> ROMindexPair = readOnlyMemoryIndices[ROMsegmentIndex];
 						uint16_t numberOfCharacters = ROMindexPair.second - ROMindexPair.first;
 
+						std::cout << std::to_string(ROMindexPair.first) << " " << std::to_string(ROMindexPair.second) << std::endl;
+
 						std::cout.write(
 							reinterpret_cast<const char*>(&readOnlyMemory[ROMindexPair.first]),
 							numberOfCharacters
