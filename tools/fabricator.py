@@ -350,7 +350,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 			text:str = ln.split('"')[1].replace('"','');
 			if (not shouldAddToROM): return ("1011" + opcodes["i_o"] + BLANK + BLANK);
 
-			ROMidx:int = len(ROM_INDEX)-1; #Add to end of index. Take last index.
+			ROMidx:int = len(ROM_DATA); #Add to end of index. Take last index.
 			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK,)
 
 			text = text.replace("\\n", "\n"); #Replace with actual 0x0A newline chars;
@@ -712,7 +712,7 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegm
 
 if __name__ == "__main__":
 
-	inFileName = "testloop.cfab";
+	inFileName = "cout.cfab";
 	if len(sys.argv) > 1:
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):
