@@ -1,3 +1,5 @@
+//fizzbuzz.cfab//
+
 $numLoops = #32
 $iter = #1
 
@@ -27,7 +29,7 @@ if ($saidEither == #1) then-goto :afterNumber
 COUT $iter
 :afterNumber
 
-PRINT "\n"
+COUT \n
 
 $iter ++
 if ($iter < $numLoops) then-goto :loop

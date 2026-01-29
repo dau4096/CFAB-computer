@@ -1,13 +1,21 @@
-$testName @ r1
-$testName / r2
+$testNameExplicit @ r1
+//Explicitly define $testNameExplicit
+
+$testNameExplicit = #10
+$testNameImplicit = #2
+//Implicitly define $testNameImplicit
+
+$testNameExplicit / $testNameImplicit
+PRINT "Alias (10/2): "
+COUT rOP \n
+//Show result.
 
 define %testMacro $A $B as
 $A + $B
 end
 
-%testMacro r1 r3
+%testMacro $testNameExplicit $testNameImplicit
 //^ would be replaced by "r1 + r3"
-
-r2 / r3
-
-
+PRINT "Macro (10+2): "
+COUT rOP \n
+//Show result.

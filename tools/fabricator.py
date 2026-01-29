@@ -339,9 +339,15 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 
 		case "cout":
 			#Writes integer value to console
+			if (preA == "\\n"):
+				return (
+					"1111" + opcodes["i_o"] + toBin(0x0A) + BLANK,
+				) #Just a newline.
+
+			#Has memory value too.
 			instructions:list[str] = [immediates[0] + "010" + opcodes["i_o"] + A + BLANK,];
 			if ((type(preB) == str) and (("$" in preB) or ("\\n" in preB))):
-				instructions.append("1111" + opcodes["i_o"] + toBin(ord("\n")) + BLANK); #COUT << NEWLINE instruction
+				instructions.append("1111" + opcodes["i_o"] + toBin(0x0A) + BLANK); #COUT << NEWLINE instruction
 
 			return tuple(instructions);
 
@@ -349,7 +355,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 		case "print":
 			#Writes text to console. Uses ROM at the end of the file.
 			text:str = ln.split('"')[1].replace('"','');
-			if (not shouldAddToROM): return ("1011" + opcodes["i_o"] + BLANK + BLANK);
+			if (not shouldAddToROM): return ("1011" + opcodes["i_o"] + BLANK + BLANK,);
 
 			ROMidx:int = len(ROM_DATA); #Add to end of index. Take last index.
 			instructions:tuple[str] = ("1011" + opcodes["i_o"] + toBin(ROMidx) + BLANK,)
@@ -427,7 +433,7 @@ def convertValues(V, convertMarkers:bool=True):
 		if (convertMarkers):
 			return (markers[V.replace(":", "").upper()], True);
 		else:
-			return ("0"*8, True); #Filler marker index, ensures binary is upheld even if not correct.
+			return (0, True); #Filler marker index, ensures binary is upheld even if not correct.
 	else:
 		try:
 			return (int(V), True);
@@ -504,7 +510,7 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
-	instructionList = convertAllToBin(operator, immediates, A, B, ln=line, shouldAddToROM=makeHex);
+	instructionList = convertAllToBin(operator, immediates, A, B, ln=line, shouldAddToROM=convertMarkers);
 	hexList = [f"{int(instruction, 2):06X}" for instruction in instructionList] if makeHex else instructionList;
 
 	return hexList
