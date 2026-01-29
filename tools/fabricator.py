@@ -268,7 +268,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 				instrIdx = preA;
 			return (
 				immediates + "00" + opcodes["brn"] + instrIdx,
-			);
+			);1
 
 
 		case "if":
@@ -277,6 +277,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 				instrIdx:int = str(bin(preB & 0xFFFF)[2:]).zfill(16); #16-bit.
 			except TypeError:
 				instrIdx = preB;
+			
 			return (
 				condition,
 				immediates + "10" + opcodes["brn"] + instrIdx,
@@ -422,8 +423,11 @@ def convertValues(V, convertMarkers:bool=True):
 		return (int(V.replace("#b",""), 2), True);
 	elif V.startswith("#"): #Immediate values (Denary)
 		return (int(V.replace("#d", "").replace("#","")), True);
-	elif V.startswith(":") and convertMarkers: #Markers
-		return (markers[V.replace(":", "").upper()], True);
+	elif V.startswith(":"): #Markers
+		if (convertMarkers):
+			return (markers[V.replace(":", "").upper()], True);
+		else:
+			return ("0"*8, True); #Filler marker index, ensures binary is upheld even if not correct.
 	else:
 		try:
 			return (int(V), True);
@@ -493,10 +497,10 @@ def convertLine(line, makeHex:bool=True, convertMarkers:bool=True):
 		raise FabricationError(f"Unknown Command encountered: {operands}")
 
 	if (operator != "if"):
-		A, immA = convertValues(A, convertMarkers)
+		A, immA = convertValues(A, convertMarkers);
 	else:
 		immA = True;
-	B, immB = convertValues(B, convertMarkers)
+	B, immB = convertValues(B, convertMarkers);
 
 	immediates = f"{'1' if immA else '0'}{'1' if immB else '0'}"
 
@@ -739,9 +743,9 @@ if __name__ == "__main__":
 	for line in aliasReplaced:
 		if not line.startswith(":"):
 			#Convert lines using convertLine().
-			expandedTMP.extend(convertLine(line, False, False)) #1 line of CFAB can correspond to multiple instructions
+			expandedTMP.extend(convertLine(line, makeHex=True, convertMarkers=False)) #1 line of CFAB can correspond to multiple instructions
 		else:
-			expandedTMP.extend([line,])
+			expandedTMP.append(line);
 
 	for curLine in expandedTMP:
 		if curLine.startswith(":"):
@@ -750,13 +754,14 @@ if __name__ == "__main__":
 			 :marker
 			You may jump back to these using BRN, JMP or IF commands, like so;
 			 JMP :marker
+			 IF (condition) then-goto :marker
 			"""
 			markers[curLine.replace(":", "").split(" ")[0].upper()] = [
 				accLine for accLine in expandedTMP if (
 					(not (
-						accLine.startswith(":") or
-						accLine == "" or
-						accLine.startswith("//")
+						accLine.startswith(":") or #Marker lines ignored
+						accLine == "" or           #Empty lines ignored
+						accLine.startswith("//")   #Comment lines ignored
 					)
 				) or accLine == curLine)
 			].index(curLine)
