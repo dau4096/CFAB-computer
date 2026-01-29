@@ -1,0 +1,36 @@
+//maxOfArray.cfab//
+
+//Alias definitions
+$arrayStartAddress @ r0
+$arrayLength @ r1
+$result @ r2
+//Others use implicit declarations (like $iteration being assigned a register)
+
+//Set iteration to 0.
+$iteration = #0
+
+//If array length is 0, skip the loop.
+if ($arrayLength == #0) then-goto :EOF
+:loop
+	//Get current array address
+	$arrayStartAddress + $iteration
+	rOP ~ $currentArrayAddress
+	RAMread $currentArrayAddress
+	rOP ~ $currentArrayValue
+
+	if ($currentArrayValue <= $result) then-goto :notGreaterThan
+		//Set new maximum value.
+		$result = $currentArrayValue
+	:notGreaterThan
+
+	
+	//Increment iteration count
+	$iteration + #1
+	rOP ~ $iteration
+
+	//Loop if not finished array.
+	if ($iteration < $arrayLength) then-goto :loop
+:EOF
+
+//Show result.
+COUT $result \n
