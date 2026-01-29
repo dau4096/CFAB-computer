@@ -144,7 +144,8 @@ bool loadROMIndices(const std::vector<uint8_t>& byteData, size_t romIndexOffset)
 
 
 bool loadROMData(std::vector<uint8_t>& byteData, size_t romIndexOffset) {
-	size_t romDataOffset = romIndexOffset + ((metaData.numberOfROMSegments + 1u) * 2u);
+	if (metaData.numberOfROMSegments < 1) {return true; /* No data to load - But did not "fail". */}
+	size_t romDataOffset = romIndexOffset + ((metaData.numberOfROMSegments+1u) * 2u);
 	if (romDataOffset >= byteData.size()) {
 		std::cout << "Tried to read ROM segment data past end of file." << std::endl;
 		return false;

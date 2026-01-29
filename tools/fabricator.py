@@ -340,7 +340,7 @@ def convertAllToBin(operator:str, immediates:str, preA:int, preB:int, ln:str="",
 			#Writes integer value to console
 			instructions:list[str] = [immediates[0] + "010" + opcodes["i_o"] + A + BLANK,];
 			if ((type(preB) == str) and (("$" in preB) or ("\\n" in preB))):
-				instructions.append("1011" + opcodes["i_o"] + toBin(ord("\n")) + BLANK); #COUT << NEWLINE instruction
+				instructions.append("1111" + opcodes["i_o"] + toBin(ord("\n")) + BLANK); #COUT << NEWLINE instruction
 
 			return tuple(instructions);
 
