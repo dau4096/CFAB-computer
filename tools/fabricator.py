@@ -776,7 +776,7 @@ if __name__ == "__main__":
 	for romDat in ROM_DATA:
 		ROM_INDEX.append(format(sumIndex, "04x"));
 		sumIndex += len(romDat);
-	#ROM_INDEX.append(format(len(ROM_DATA), "04x")); #16-bit.
+	ROM_INDEX.append(format(sumIndex, "04x")); #16-bit.
 	
 	#Make the list of hex instructions into a set of bytes.
 	numberOfInstructions:int = len(instructionHexList); #6 hex values per instr (3 bytes)
