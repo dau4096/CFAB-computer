@@ -1,8 +1,4 @@
-//Vars
-$iter @ r0
-$saidEither @ r1
-$numLoops @ r2
-
+//fizzbuzz.cfab//
 
 $numLoops = #32
 $iter = #1
@@ -14,24 +10,25 @@ $saidEither = #0
 //Every 3, say "Fizz"
 //When condition evals to #0, prints. Otherwise skips
 if ($iter % #3) then-goto :after3
-PRINT "Fizz"
+PRINT "Fizz\n"
 $saidEither = #1
 :after3
 
 //Every 5, say "Buzz"
 //When condition evals to #0, prints. Otherwise skips
 if ($iter % #5) then-goto :after5
-PRINT "Buzz"
+PRINT "Buzz\n"
 $saidEither = #1
 :after5
 
 //Otherwise say the number.
 //When condition evals to #0, prints. Otherwise skips
 if ($saidEither == #1) then-goto :afterNumber
-COUT $iter
+COUT $iter \n
 :afterNumber
 
-PRINT "\n"
+COUT #x0A
+//0x0A is newline char
 
 $iter ++
 if ($iter < $numLoops) then-goto :loop

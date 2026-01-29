@@ -2,10 +2,16 @@
 
 clear
 if [ $# -gt 0 ]; then
-	python3 tools/fabricator.py $1.cfab $1.dat
+	cd tools
+	python3 fabricator.py $1.cfab $1.dat
+	cd ..
 else
 	echo "No source CFAB file supplied."
 	exit -1
 fi
 
-./app -f $1.dat
+if [ $# -gt 1 ]; then
+	./app $2 -f $1.dat
+else
+	./app -f $1.dat
+fi
