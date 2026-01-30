@@ -3,6 +3,7 @@ import sys;
 import re as regex;
 
 from fabsrc import shared, macro, alias, translate;
+from fabsrc.shared import FabricationError;
 
 
 

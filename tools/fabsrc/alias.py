@@ -1,6 +1,7 @@
 "alias.py"
 import re as regex;
 from fabsrc import shared;
+from fabsrc.shared import FabricationError;
 
 
 

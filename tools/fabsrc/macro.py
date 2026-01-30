@@ -1,5 +1,6 @@
 "macro.py"
 from fabsrc import shared;
+from fabsrc.shared import FabricationError;
 
 
 global MACROS;

@@ -1,4 +1,8 @@
 "shared.py"
+from typing import Callable;
+from dataclasses import dataclass;
+from enum import Enum;
+
 
 #### CONSTANTS ####
 NUM_REGISTERS:int = 64;
@@ -52,42 +56,67 @@ def toBin(value:int) -> str:
 
 
 #### CLASSES ####
+class OperationType(Enum): #Used to distinguish types of instruction.
+	ZERO_OPERAND = 1;
+	ONE_OPERAND  = 2;
+	TWO_OPERAND  = 3;
+	COMPLEX      = 4;
+
+
 class FabricationError(Exception): #Fabrication error exception.
 	def __init__(self, error:str="Fabrication Failed!"):
 		self.message:str = f"Fabrication Error; {error}";
 		super().__init__(self.message);
 
 
+@dataclass
+class ParsedLine:
+	operator:str = "";
+	operands:tuple[str] = ();
+	valid:bool = False;
+	convertedOperands:tuple[int] = ();
+	immediates:str = "";
+	src:str = "";
+INVALID_PARSED_LINE = ParsedLine(operator="", operands=[], valid=False, convertedOperands=(), immediates="", src="");
+
+
+@dataclass
+class Macro: #Stores data about a given macro.
+	name:str;
+	params:tuple[str];
+	lines:tuple[str];
+
+
 class Data: #Stores data about this line.
 	def _getAB(self):
-		try: self.A = toBin(self.preA);
+		try: self.A = toBin(int(self.preA));
 		except ValueError as e:
-			print(f"Cannot convert value [A]: {e}");
-			return ("",);
+			pass; #print(f"Cannot convert value [A]: {e}");
 		except TypeError: pass; #Ignore TypeErrors.
 
-		try: self.B = toBin(self.preB);
+		try: self.B = toBin(int(self.preB));
 		except ValueError as e:
-			print(f"Cannot convert value [B]: {e}");
-			return ("",);
+			pass; #print(f"Cannot convert value [B]: {e}");
 		except TypeError: pass; #Ignore TypeErrors.
 	
-	def __init__(self, text:str, immediates:str, preA:str, preB:str):
-		self.text:str = text;
-		self.immediates:str = immediates;
-		self.preA:str = preA;
-		self.preB:str = preB;
+	def __init__(self, parsedLine:ParsedLine):
+		self.text:str = parsedLine.src;
+		self.immediates:str = parsedLine.immediates;
+		self.preA:str = parsedLine.convertedOperands[0];
+		self.preB:str = parsedLine.convertedOperands[1];
 
 		self.A:str = "";
 		self.B:str = "";
 		self._getAB();
 
 
-class Macro: #Stores data about a given macro.
-	def __init__(self, name:str, params:list[str], lines:list[str]):
-		self.name:str = name;
-		self.params:list[str] = params;
-		self.lines:list[str] = lines;
+class Operation:
+	def __init__(self, type:OperationType, func:Callable):
+		self.type:OperationType = type;
+		self.func:Callable = func;
+
+	def __call__(self, ln:Data) -> list[str]: #Let you call the Operation as usual.
+		return self.func(ln);
 #### CLASSES ####
 
 
