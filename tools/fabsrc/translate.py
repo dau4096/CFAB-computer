@@ -338,7 +338,12 @@ def FORM_ROMdeclaration(lineSplit:list[str], makeHex:bool) -> bool:
 
 	ROMbytes:list[int] = [int(hexData[i:i+2], 16) for i in range(0, len(hexData), 2)];
 	if ((len(shared.ROM_DATA) - 1) >= index): shared.ROM_DATA[index].extend(ROMbytes); #If index entry already exists, add to it.
-	else: shared.ROM_DATA.append(ROMbytes); #Otherwise create new entry.
+	else:
+		#Otherwise create new entry.
+		#Needs to be "padded" to the correct index, with empty ROM indices to ensure the indexing is right.
+		for i in range(len(shared.ROM_DATA), index): #If there are 4 entries (latest index is [3]), and this is index 7, loop through i=4,5,6.
+			shared.ROM_DATA.append([]); #Empty ROM index.
+		shared.ROM_DATA.append(ROMbytes);
 
 	return True;
 #### LINE FORMATS ####
@@ -455,7 +460,7 @@ def processMarkers(aliasReplaced:list[str]):
 	#Process all lines once, to get the number of instructions for each section. Used for calculating marker indices.
 	expandedTMP:list[str] = [];
 	for line in aliasReplaced:
-		if not line.startswith(":"):
+		if (not line.startswith(":")):
 			#Convert lines using convertLine().
 			conversion:list[str] = convertLine(line, makeHex=False, convertMarkers=False);
 			#print(line, conversion)

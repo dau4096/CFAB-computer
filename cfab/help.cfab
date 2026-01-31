@@ -1,7 +1,7 @@
 //Simple help file autoloaded when just running ./app without params
 PRINT "CFAB-computer/V2 Interpreter\n"
 PRINT "Intended to run fabricated instruction files, created using fabricator.py.\n"
-PRINT "Command arguments;\n"
+PRINT "Command arguments\n"
 PRINT " - [file/f]    Loads a bytes-data file from data dir beside interpreter.\n"
 PRINT " - [verbose/v] Outputs every instruction processed (Operands, name, etc.)\n"
 PRINT " - [test/t]    Runs built-in unit testing.\n"

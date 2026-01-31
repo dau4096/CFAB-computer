@@ -15,8 +15,11 @@ def replaceAliases(lines:list[str]) -> list[str]:
 	#Find aliases
 	"""
 	Define aliasing for register names like so;
-	 varName  @ r1
-	Every time varName is written, it is replaced by r1 by the fabricator.
+	    $varName @ r1
+	  Every time varName is written, it is replaced by r1 by the fabricator.
+	And define aliasing for ROM indices like so;
+	    $varName @ ROM1
+	  Every time varName is written, it is replaced by ROM1 by the fabricator.
 	Allows for nicer formatting of CFAB.
 	Can also be defined without explicit register address, and will be automatically assigned an address.
 	"""
@@ -49,12 +52,14 @@ def replaceAliases(lines:list[str]) -> list[str]:
 		if ((len(operands) == 3) and (operands[1] == "@")): #Assigning an alias explicitly
 			#e.g. "$iteration @ r3"
 			aliasName:str = operands[0].replace("$", "");
-			aliases[aliasName] = operands[2]
+			aliases[aliasName] = operands[2];
 			unassignedAliases.remove(operands[0]); #Remove alias from unassigned list, user defined.
 
 			#Find the corresponding register name (e.g. "r8") and remove it from available registers.
+			#If its ROM[N] then it just ignores this.
 			idx:str = "";
-			if (operands[2].lower() in builtinRegisterAliases): idx = builtinRegisterAliases[operands[2].lower()];
+			if (operands[2].lower().startswith("rom")): continue;
+			elif (operands[2].lower() in builtinRegisterAliases): idx = builtinRegisterAliases[operands[2].lower()];
 			else: idx = operands[2];
 			availableRegisters.remove(idx); 
 
@@ -64,8 +69,8 @@ def replaceAliases(lines:list[str]) -> list[str]:
 	#Implicit aliases have no "$iteration @ r3" style line, and have their memory addresses assigned automatically.
 	if (len(unassignedAliases) > len(availableRegisters)): #If there's more implicit aliases used than registers unoccupied.
 		raise FabricationError(f"Too many assigned aliases: {len(aliases)+len(unassignedAliases)}. Can have at most, {shared.NUM_REGISTERS}.");
-	for (alias, register) in zip(unassignedAliases, availableRegisters):
-		aliases[alias.replace("$", "")] = register; #Assign register to alias.
+	for (alias, value) in zip(unassignedAliases, availableRegisters):
+		aliases[alias.replace("$", "")] = value; #Assign value to alias.
 
 
 
@@ -79,14 +84,15 @@ def replaceAliases(lines:list[str]) -> list[str]:
 			builtinRegisterAliases["rop"], #Result register
 			curLine
 		);
-		for alias, register in aliases.items():
+		for alias, value in aliases.items():
 			fixedLine = regex.sub(
 				rf"\${alias}(?=$|\W)",
-				register, #Any user-defined aliases.
+				value, #Any user-defined aliases.
 				fixedLine
 			);
 
 		aliasReplaced.append(fixedLine);
 
 
+	del aliases;
 	return aliasReplaced;

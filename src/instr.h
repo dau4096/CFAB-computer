@@ -63,7 +63,7 @@ Ia | Ib | F B | I N S T R |
  SHF | 1100 |  C  | FB0, Left-shifts A by B bits. FB1, Right-shifts A by B bits.
  EXT | 1101 |  D  | Extra; FB0, halt. FB1, Clear all registers. FB2, write to RAM. FB3, read from RAM. [RAM uses rOP for read/write value.]
  SLP | 1110 |  E  | Sleep; FB0, sleep for (A<<8)|B milliseconds. FB1, sleeps until user input (should be paired with I_O call after)
- __F | 1111 |  F  | 
+ MEM | 1111 |  F  | 
 */
 
 	bool Aimmediate, Bimmediate;
@@ -80,7 +80,7 @@ Ia | Ib | F B | I N S T R |
 			"NOP", "SET", "MOV", "ADD",
 			"SUB", "MUL", "DIV", "NOT",
 			"EQU", "GRT", "BRN", "I_O",
-			"SHF", "EXT", "SLP", "__F"
+			"SHF", "EXT", "SLP", "MEM"
 		};
 		const std::array<std::string, 4> extMap = {
 			"HALT", "CLEAR", "RAM-WRITE", "RAM-READ"

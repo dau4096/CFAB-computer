@@ -16,5 +16,6 @@ PRINT " --{+2}-> ";
 $A = ($A + #2); COUT $A \n;
 
 //ROM definition.
-//Doesn't seem to fab correctly, and comments can't be highlighted at the end of its line.
-ROM8 0123456789ABCDEF
+ROM8 0123456789ABCDEF AAAFFAFA AAFAFDDD //Test line comment
+ROM6 aaaaaaa /* Test block comment */
+$itemSprite @ ROM6

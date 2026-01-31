@@ -31,6 +31,8 @@ contexts:
       scope: punctuation.definition.string.begin
       push:
         - meta_scope: string.quoted.double
+        - match: ';'
+          scope: invalid.illegal
         - match: '\\.'
           scope: constant.character.escape
         - match: '"'
@@ -54,9 +56,10 @@ contexts:
       scope: variable.function
 
 
-    #Brackets
-    - match: '\(|\)'
-      scope: comment.block
+    #Brackets & Semicolons
+    - match: '\(|\)|;'
+    #Match to stop them being marked invalid, but no colours applied.
+
 
     #Branch alternative notation
     - match: '(?i)\bif(\s?)\b'
@@ -84,7 +87,7 @@ contexts:
 
 
     #Opcode prefix
-    - match: '\b(?i)(nop|set|mov|add|sub|mul|div|not|equ|grt|brn|i_o|shf|ext|slp|__f)\b'
+    - match: '\b(?i)(nop|set|mov|add|sub|mul|div|not|equ|grt|brn|i_o|shf|ext|slp|mem)\b'
       scope: keyword.control
 
     #Inline
@@ -120,9 +123,15 @@ contexts:
       scope: variable.other
       push:
         - meta_scope: variable.constant
-        - match: '$'
+        - match: '(?i)\s+([0-9A-F]+)'
+          captures:
+            1: constant.numeric.hex
+        - match: ';|\s|//|$'
           pop: true
 
 
+    #Mark non-matching things as an issue.
+    - match: '\S'
+      scope: invalid.unexpected
 
 

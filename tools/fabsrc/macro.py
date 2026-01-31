@@ -96,4 +96,5 @@ def replaceMacros(lines:list[str], depth:int=0, activeMacros:set[str]=None, prev
 
 
 
+	del MACROS;
 	return macrosReplaced;
