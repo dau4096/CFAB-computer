@@ -9,7 +9,7 @@ contexts:
 
 
 
-    #Comments
+    #Single line comments
     - match: '//'
       scope: punctuation.definition.comment
       push:
@@ -17,15 +17,24 @@ contexts:
         - match: '$'
           pop: true
 
+    #Multi line comments
+    - match: '/\*'
+      scope: punctuation.definition.comment.begin
+      push:
+        - meta_scope: comment.block
+        - match: '\*/'
+          scope: punctuation.definition.comment.end
+          pop: true
+
     #Strings
     - match: '"'
-      scope: punctuation.definition.string.begin.example-c
+      scope: punctuation.definition.string.begin
       push:
-        - meta_scope: string.quoted.double.example-c
+        - meta_scope: string.quoted.double
         - match: '\\.'
-          scope: constant.character.escape.example-c
+          scope: constant.character.escape
         - match: '"'
-          scope: punctuation.definition.string.end.example-c
+          scope: punctuation.definition.string.end
           pop: true
 
     #Newline char
@@ -45,6 +54,9 @@ contexts:
       scope: variable.function
 
 
+    #Brackets
+    - match: '\(|\)'
+      scope: comment.block
 
     #Branch alternative notation
     - match: '(?i)\bif(\s?)\b'
@@ -92,7 +104,7 @@ contexts:
     - match: '#x[0-9A-F]+'
       scope: variable.constant
 
-    - match: '#b[0-1]+'
+    - match: '#b(0|1)+'
       scope: variable.constant
 
 

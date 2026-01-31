@@ -124,8 +124,14 @@ if (__name__ == "__main__"):
 	print(f"Reading: cfab/{inFileName}");
 	src:list[str] = [];
 	with open(f"../cfab/{inFileName}", "r") as CFABFile:
-		rawLines:list[str] = CFABFile.readlines();
-		partialLines:list[str] = [line.strip() for line in rawLines if not line.strip().startswith("//")];
+		raw:str = CFABFile.read();
+		raw = regex.sub(
+			r"(\/\*[\s\S]*?\*\/)|(\/\/.*\n)", #Matches multiline comments "/* ... */" And normal comments "//..."
+			"", #Replace with nothing
+			raw
+		); #Remove comments from raw.
+		rawLines:list[str] = [ln for ln in raw.replace(";","\n").split("\n") if len(ln)]; #Seperate on semicolons or newlines.
+		partialLines:list[str] = [line.strip() for line in rawLines];
 		src = [line for line in partialLines if line != ""];
 		del rawLines, partialLines;
 
@@ -133,7 +139,7 @@ if (__name__ == "__main__"):
 	#Convert to fabricated bytes.
 	(headerBytes, instructionBytes, ROMindexBytes, ROMdataBytes, numberOfInstructions) = fabricate(src);
 	totalBytes:int = len(instructionBytes) + len(ROMindexBytes) + len(ROMdataBytes); #Find total bytes (Excluding header)
-	print(f"Fabrication complete.\nWrote {totalBytes} instruction/ROMdata bytes [{numberOfInstructions} instructions] to data/{outFileName}");
+	print(f"Fabrication complete.\nWrote {totalBytes} bytes [{numberOfInstructions} instructions] to data/{outFileName}");
 
 
 	#Write to the out-file.

@@ -54,6 +54,16 @@ def convertValues(V:str, convertMarkers:bool=True) -> tuple[int, bool]:
 
 
 #### COMPLEX OPCODES ####
+def OPC_set(ln:shared.Data) -> list[str]:
+	if (regex.match(r"(?i)^(?!(((#|#d|#x|#b|r)?[0-9a-f])|(\$[a-z0-9]+))+$).+", ln.preB) is not None): #Operand B is something like "r1 + #4"
+		return [
+			convertLine(ln.preB, makeHex=False)[0], #The calculation
+			f"0000{getOperatorBinary('set')}{ln.A}{shared.REG_RESULT}" #"SET rA rOP"
+		];
+	else:
+		ln.B = shared.toBin(convertValues(ln.preB, convertMarkers=SHOULD_ADD_TO_ROM)[0]); #Convert B only NOW.
+		return [f"{ln.immediates}00{getOperatorBinary('set')}{ln.A}{ln.B}",];
+
 def OPC_branch(ln:shared.Data) -> list[str]:
 	try: instrIdx:int = to16B(ln.preA); #16-bit.
 	except TypeError: instrIdx = preA;
@@ -90,6 +100,7 @@ def ABS_sign(ln:shared.Data) -> list[str]:
 		f"{ln.immediates[0]}011{getOperatorBinary('not')}{ln.A}{shared.BLANK}",
 		f"{ln.immediates[0]}000{getOperatorBinary('div')}{ln.A}{shared.REG_RESULT}",
 	];
+
 
 def ABS_if(ln:shared.Data) -> list[str]:
 	condition:str = convertLine(ln.preA, makeHex=False)[0];
@@ -213,28 +224,27 @@ INFIX_OPERATORS_MAP:dict[str, str] = {
 #Maps operation mneumonics to their instruction calls.
 OPERATOR_MAPPING:dict[str, shared.Operation] = {
 	#0-Operand operations;
-	"nop":      shared.Operation(type=shared.OperationType.ZERO_OPERAND, func=(lambda ln : [f"0000{getOperatorBinary('nop')}{shared.BLANK}{shared.BLANK}",])), #No-Operation
-	"halt":     shared.Operation(type=shared.OperationType.ZERO_OPERAND, func=(lambda ln : [f"0000{getOperatorBinary('ext')}{shared.BLANK}{shared.BLANK}",])), #Halt/Exit
-	"wait":     shared.Operation(type=shared.OperationType.ZERO_OPERAND, func=(lambda ln : [f"0001{getOperatorBinary('slp')}{shared.BLANK}{shared.BLANK}",])), #Wait for user input
+	"nop":      shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0000{getOperatorBinary('nop')}{shared.BLANK}{shared.BLANK}",])), #No-Operation
+	"halt":     shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0000{getOperatorBinary('ext')}{shared.BLANK}{shared.BLANK}",])), #Halt/Exit
+	"wait":     shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0001{getOperatorBinary('slp')}{shared.BLANK}{shared.BLANK}",])), #Wait for user input
 
 
 	#1-Operand operations;
-	"set":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('set')}{ln.A}{ln.B}",])), #Assign memory a value
-	"mov":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('mov')}{ln.A}{ln.B}",])), #Move memory
-	"add":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('add')}{ln.A}{ln.B}",])), #Addition
-	"sub":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('sub')}{ln.A}{ln.B}",])), #Subtraction
-	"mul":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('mul')}{ln.A}{ln.B}",])), #Multiplication
-	"div":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('div')}{ln.A}{ln.B}",])), #Division
-	"equ":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('equ')}{ln.A}{ln.B}",])), #Equal
-	"grt":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('grt')}{ln.A}{ln.B}",])), #Greater than
-	"i_o":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('i_o')}{ln.A}{ln.B}",])), #Input_Output
-	"shf":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('shf')}{ln.A}{ln.B}",])), #Bitshift
+	"not":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates[0]}000{getOperatorBinary('not')}{ln.A}{shared.BLANK}",])), #Logical Not
+	"inv":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates[0]}010{getOperatorBinary('not')}{ln.A}{shared.BLANK}",])), #Bitwise Not
+	"clear":    shared.Operation(type=shared.OperationType.ONE_OPERAND, func=(lambda ln : [f"{ln.immediates[0]}001{getOperatorBinary('ext')}{ln.A}{shared.BLANK}",])), #Fill all registers with value A|*A
 
 
 	#2-Operand operations;
-	"not":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates[0]}000{getOperatorBinary('not')}{ln.A}{shared.BLANK}",])), #Logical Not
-	"inv":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates[0]}010{getOperatorBinary('not')}{ln.A}{shared.BLANK}",])), #Bitwise Not
-	"clear":    shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates[0]}001{getOperatorBinary('ext')}{ln.A}{shared.BLANK}",])), #Fill all registers with value A|*A
+	"mov":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('mov')}{ln.A}{ln.B}",])), #Move memory
+	"add":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('add')}{ln.A}{ln.B}",])), #Addition
+	"sub":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('sub')}{ln.A}{ln.B}",])), #Subtraction
+	"mul":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('mul')}{ln.A}{ln.B}",])), #Multiplication
+	"div":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('div')}{ln.A}{ln.B}",])), #Division
+	"equ":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('equ')}{ln.A}{ln.B}",])), #Equal
+	"grt":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('grt')}{ln.A}{ln.B}",])), #Greater than
+	"i_o":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('i_o')}{ln.A}{ln.B}",])), #Input_Output
+	"shf":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('shf')}{ln.A}{ln.B}",])), #Bitshift
 
 
 	#2-Opcode operations that use other operators;
@@ -256,21 +266,22 @@ OPERATOR_MAPPING:dict[str, shared.Operation] = {
 
 
 	#Complex operations;
-	"brn":      shared.Operation(type=shared.OperationType.COMPLEX, func=OPC_branch), #Conditional branching
-	"jmp":      shared.Operation(type=shared.OperationType.COMPLEX, func=OPC_jump),   #Unconditional branching
-	"sleep":    shared.Operation(type=shared.OperationType.COMPLEX, func=OPC_sleep),  #Sleep for specified number of milliseconds
+	"set":      shared.Operation(type=shared.OperationType.ONLY_A_OPRNDS, func=OPC_set),    #Assign memory a value, or the result of a calculation.
+	"brn":      shared.Operation(type=shared.OperationType.COMPLEX,       func=OPC_branch), #Conditional branching
+	"jmp":      shared.Operation(type=shared.OperationType.COMPLEX,       func=OPC_jump),   #Unconditional branching
+	"sleep":    shared.Operation(type=shared.OperationType.COMPLEX,       func=OPC_sleep),  #Sleep for specified number of milliseconds
 
 
 	#Complex abstractions of operations;
-	"inc":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=ABS_increment), #Increments in-place
-	"dec":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=ABS_decrement), #Decrements in-place
-	"sgn":      shared.Operation(type=shared.OperationType.ONE_OPERAND, func=ABS_sign),      #Mathematical sign of value [+/- 1]
-	"if":       shared.Operation(type=shared.OperationType.COMPLEX,     func=ABS_if),		 #Nicer formatted conditional branching
-	"cout":		shared.Operation(type=shared.OperationType.COMPLEX,     func=ABS_cout),	     #Show single value in console
-	"print":	shared.Operation(type=shared.OperationType.COMPLEX,     func=ABS_print),	 #Show larger, fixed block of text in console
-	"load":		shared.Operation(type=shared.OperationType.COMPLEX,     func=ABS_load),	     #Loads section of ROM into RAM
-	"copy":		shared.Operation(type=shared.OperationType.COMPLEX,     func=ABS_copy),      #Copies one section of RAM into another
-	"ramclear": shared.Operation(type=shared.OperationType.COMPLEX,     func=ABS_RAMclear),  #Fills RAM in range with some value
+	"inc":      shared.Operation(type=shared.OperationType.ONE_OPERAND,   func=ABS_increment), #Increments in-place
+	"dec":      shared.Operation(type=shared.OperationType.ONE_OPERAND,   func=ABS_decrement), #Decrements in-place
+	"sgn":      shared.Operation(type=shared.OperationType.ONE_OPERAND,   func=ABS_sign),      #Mathematical sign of value [+/- 1]
+	"if":       shared.Operation(type=shared.OperationType.ONLY_B_OPRNDS, func=ABS_if),		   #Nicer formatted conditional branching
+	"cout":		shared.Operation(type=shared.OperationType.COMPLEX,       func=ABS_cout),	   #Show single value in console
+	"print":	shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=ABS_print),	   #Show larger, fixed block of text in console
+	"load":		shared.Operation(type=shared.OperationType.COMPLEX,       func=ABS_load),	   #Loads section of ROM into RAM
+	"copy":		shared.Operation(type=shared.OperationType.COMPLEX,       func=ABS_copy),      #Copies one section of RAM into another
+	"ramclear": shared.Operation(type=shared.OperationType.COMPLEX,       func=ABS_RAMclear),  #Fills RAM in range with some value
 };
 #All one-value operations.
 UNARY_OPERATIONS:list[str] = [k for (k,v) in OPERATOR_MAPPING.items() if (v.type == shared.OperationType.ONE_OPERAND)];
@@ -326,8 +337,8 @@ def FORM_ROMdeclaration(lineSplit:list[str], makeHex:bool) -> bool:
 	if (len(hexData) % 2): hexData += "0"; #Must be of even length.
 
 	ROMbytes:list[int] = [int(hexData[i:i+2], 16) for i in range(0, len(hexData), 2)];
-	if ((len(ROM_DATA) - 1) >= index): ROM_DATA[index].extend(ROMbytes); #If index entry already exists, add to it.
-	else: ROM_DATA.append(ROMbytes); #Otherwise create new entry.
+	if ((len(shared.ROM_DATA) - 1) >= index): shared.ROM_DATA[index].extend(ROMbytes); #If index entry already exists, add to it.
+	else: shared.ROM_DATA.append(ROMbytes); #Otherwise create new entry.
 
 	return True;
 #### LINE FORMATS ####
@@ -402,10 +413,19 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 
 	
 	convertedValues:list[int] = [];
-	if (parsedLine.operator != "if"): convertedValues = [convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands];
-	else:
+	if (operation.type == shared.OperationType.ONLY_A_OPRNDS): #B operand is NOT to be converted.
+		convertedValues = [
+			convertValues(parsedLine.operands[0], convertMarkers=convertMarkers), #Convert
+			(parsedLine.operands[1], True) #No convert
+		];
+		convertedValues.extend([convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands[2:]]);
+	elif (operation.type == shared.OperationType.ONLY_B_OPRNDS): #Do not convert A.
 		convertedValues = [(parsedLine.operands[0], True),];
 		convertedValues.extend([convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands[1:]]);
+	elif (operation.type != shared.OperationType.ZERO_OPERANDS):
+		convertedValues = [convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands];
+	else:
+		convertedValues = [(0, True) for _ in parsedLine.operands];
 		
 
 	parsedLine.convertedOperands = tuple([e[0] for e in convertedValues]);

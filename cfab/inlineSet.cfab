@@ -1,0 +1,20 @@
+/*
+Testing new features.
+Multi-line comments!
+*/
+
+//Now allows for semicolon newlines.
+//Testing inline set operations;
+r0 = (#1 + #2); PRINT "r0 = (#1 + #2) = "; COUT r0 \n;
+r1 = (#11 % r0); PRINT "r1 = (#11 % r0) = "; COUT r1 \n;
+r12 = (#10 / #2); PRINT "r12 = (#10 / #2) = "; COUT r12 \n;
+
+
+PRINT "$A = "; //The $A seems to get removed by accident - need to fix.
+$A = #7; COUT $A;
+PRINT " --{+2}-> ";
+$A = ($A + #2); COUT $A \n;
+
+//ROM definition.
+//Doesn't seem to fab correctly, and comments can't be highlighted at the end of its line.
+ROM8 0123456789ABCDEF

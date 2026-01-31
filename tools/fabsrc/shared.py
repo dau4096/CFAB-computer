@@ -57,10 +57,12 @@ def toBin(value:int) -> str:
 
 #### CLASSES ####
 class OperationType(Enum): #Used to distinguish types of instruction.
-	ZERO_OPERAND = 1;
-	ONE_OPERAND  = 2;
-	TWO_OPERAND  = 3;
-	COMPLEX      = 4;
+	ZERO_OPERANDS = 1;
+	ONE_OPERAND   = 2;
+	TWO_OPERAND   = 3;
+	COMPLEX       = 4;
+	ONLY_A_OPRNDS = 5;
+	ONLY_B_OPRNDS = 6;
 
 
 class FabricationError(Exception): #Fabrication error exception.
