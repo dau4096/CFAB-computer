@@ -1,0 +1,120 @@
+/* comparison.cfab */
+/*
+Shows change between oldest CFAB style and "modern"/Newest as of [31/01/2026].
+
+Oldest style lacks most QOL features around aliases, macros, console output and even inline operations.
+ + Much more ASM style
+ + Simpler, (almost) every line maps to 1 finished instruction
+ - Much less readable at a glance
+ - Comments are single line only, and are the entirety of a line.
+ - No ROM usable on the file. 
+
+Newest style as of [31/01/2026] is much higher-level, with variable names, output, and other QOL.
+ + Comments can be anywhere, even mid-line
+ + Variables can be named and assigned new values in a singular line
+ + Inline operations are common, even reccomended for readability if applicable
+ + Macros can abstract parts of CFAB for multiple-calls of such.
+ + ROM can be used to store unchanging bulk data, ditto for RAM (except it can be altered at runtime)
+ - One line can be any 1+ number of finalised instructions
+ - Mix of low and high level styles can be confusing ("Can I do X? Is Y implemented? If I want to do Z, is it going to fab as I expect?")
+ - Abstractions of some things (Like copying ROM into RAM) can be harder to understand the usage of, as it isn't as immediately clear as doing it yourself manually.
+*/
+
+
+//Find average (mean) of 3 values;
+//////// OLDEST ////////
+//Set the 3 values
+SET r0 #7
+SET r1 #12
+SET r2 #10
+
+//Number of values;
+SET r3 #3
+
+//Sum and divide by 3.
+ADD r0 r1
+ADD rOP r2
+DIV rOP r3
+//////// OLDEST ////////
+
+//////// NEWEST ////////
+$sum = (#7 + #12); //First 2 values
+$sum = ($sum + #10); //Second 2
+$result = ($sum / #3); //Divide to find average
+
+PRINT "The average of 7, 12 and 10 is: ";
+COUT $result \n; //Show the result of the operation.
+//////// NEWEST ////////
+
+
+
+
+
+//Loop 16 times;
+//////// OLDEST ////////
+//Set the counter to be 0, and the number of loops to 16, the amount to add by is 1.
+SET r0 #0
+SET r1 #16
+SET r2 #1
+
+:oldLoop
+//Do something in the loop.
+
+//Check if it should loop or not
+r0 + r2
+rOP ~ r0
+r0 <= r1
+BRN :oldLoop
+//Outside of loop.
+//////// OLDEST ////////
+
+//////// NEWEST ////////
+//Set the counter to be 0, and the number of loops to 16.
+$iteration = #0;
+$count = #16;
+
+//Indentation is ALWAYS optional. I will use it for readability.
+:newLoop;
+	//Do something in the loop
+
+	//Check if it should loop or not
+	$iteration ++; //Increment iteration (add 1)
+if ($iteration <= $count) then-goto :newLoop;
+//Outside of loop
+//////// NEWEST ////////
+
+
+
+
+
+//Do the same thing 3 times;
+//The complex thing here will be use of MOD then ADD, for example's sake.
+//////// OLDEST ////////
+//Must be called 3 times manually
+MOD r0 r1
+ADD r0 rOP
+
+MOD r1 r2
+ADD r0 rOP
+
+MOD r2 r3
+ADD r0 rOP
+//If it was longer, this would not be ideal
+//////// OLDEST ////////
+
+//////// NEWEST ////////
+//Create a "macro" (function-like) that contains the complex thing.
+define %complexThing $A $B as
+	$A % $B;
+	r0 + rOP; //For example's sake it uses fixed registers same as the original.
+end
+
+//Now we call them;
+%complexThing r0 r1;
+%complexThing r1 r2;
+%complexThing r2 r3;
+//For much longer macros this becomes good QOL quickly.
+//////// NEWEST ////////
+
+
+
