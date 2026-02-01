@@ -70,10 +70,17 @@ using namespace std;
 //RAM
 #define RAM_COUNT 4096u /* 2^12 */
 #define BITS_RAM BITS_12
-//SCREEN [RAM]
-#define SCREEN_INDEX 3584u /* 0xE00, 512 bytes at the end of the RAM. */
+//SCREEN [IN RAM]
 #define SCREEN_WIDTH 32u
 #define SCREEN_HEIGHT 16u
+#define SCREEN_ELEMENT_SIZE (SCREEN_WIDTH*SCREEN_HEIGHT)
+#define SCREEN_START_INDEX (4096u-SCREEN_ELEMENT_SIZE) /* 0xE00, 512 values at the end of the RAM. */
+enum GraphicsMode {
+	GM_NONE,
+	GM_TEXT,
+	GM_256c,
+	GM_RGBc
+};
 
 //////// MEMORY ////////
 

@@ -8,35 +8,33 @@ from fabsrc.shared import FabricationError;
 
 
 
-def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegments:int=1) -> str:
+def getHeader(numberOfInstructions:int, numberOfROMSegments:int=1) -> str:
 	"Gets the header for this file, containing some metadata and an identifier string."
 
 	def STRtoBinary(s:str) -> str: return "".join([format(ord(x)&0xFF, "08b") for x in s]);
-	def INTtoBinary(i:int, bits:int) -> str: return f"{i & ((1 << bits) - 1):0{bits}b}"
+	def INTtoBinary(i:int, bits:int) -> str: return f"{i & ((1 << bits) - 1):0{bits}b}";
 	def BINtoHexade(binary: str) -> str: return format(int(binary, 2), f"0{len(binary)//4}x");
 
 
-	HEADER_LENGTH = 72; #MUST be multiple of 4.
+	HEADER_LENGTH_BITS = 72; #MUST be multiple of 4[bits].
 
 
 	modeMap:tuple[str] = ("NONE", "TEXT", "256C", "RGB");
-	modeIndex:int = 0;
-	try: modeMap.index(graphicsMode.upper());
-	except ValueError: modeIndex = 0; #Default to GM_NONE.
-	modeIndex &= 0x3; #2 bits.
+	modeIndex:int = 0; #Default is "NONE"
+	if (shared.GRAPHICS_MODE.upper().replace("RGBC","RGB") in modeMap):
+		modeIndex = modeMap.index(shared.GRAPHICS_MODE.upper().replace("RGBC","RGB")) & 0x3; #2 bits.
 
 
 	#Header parts
 	IDENT:str = STRtoBinary("CFAB"); #32 bits.
-	VERSION:str = INTtoBinary(3, bits=8); #Version 3 of this CFAB format. [CFABv2]. 8 bits.
+	VERSION:str = INTtoBinary(4, bits=8); #Version 4 of this CFAB format. [CFABv2]. 8 bits.
 	INSTR:str = INTtoBinary(numberOfInstructions, bits=16); #16 bits.
 	MODE:str = INTtoBinary(modeIndex, bits=2); #2 bits.
 	ROMSEGS:str = INTtoBinary(numberOfROMSegments, bits=10); #10 bits.
 
 
-
 	totalUsed:int = len(IDENT)+len(VERSION)+len(INSTR)+len(MODE)+len(ROMSEGS);
-	PADDING:str = "0" * (HEADER_LENGTH-totalUsed); #Pad to HEADER_LENGTH bits.
+	PADDING:str = "0" * (HEADER_LENGTH_BITS-totalUsed); #Pad to HEADER_LENGTH_BITS.
 
 	#Convert to HexaDe(cimal)
 	return BINtoHexade(IDENT + VERSION + INSTR + MODE + ROMSEGS + PADDING);
@@ -48,6 +46,15 @@ def getHeader(numberOfInstructions:int, graphicsMode:str="NONE", numberOfROMSegm
 
 def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 	"Converts CFAB source into bytes to be interpreted.";
+	#Get graphics mode;
+	for line in src:
+		if (line.lower().startswith("mode")):
+			lineSplit:list[str] = line.split(" ");
+			if (len(lineSplit) < 2): raise FabricationError("Graphics mode line must be formatted: 'MODE [NONE|TEXT|256c|RGB]'.");
+			shared.GRAPHICS_MODE = lineSplit[1]; #Set file-wide.
+			break; #Only accept the 1st def.
+	src = [ln for ln in src if (not ln.lower().startswith("mode"))];
+
 
 	macrosReplaced:list[str] = macro.replaceMacros(src);
 	aliasReplaced = alias.replaceAliases(macrosReplaced);
@@ -65,6 +72,8 @@ def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 			#Convert lines using convertLine(), and convert to Hexadecimal.
 			instructionHexList.extend(translate.convertLine(line, makeHex=True, convertMarkers=True)) #1 line of CFAB src can correspond to multiple instructions
 	del aliasReplaced;
+
+	instructionHexList.extend(translate.convertLine("HALT", makeHex=True)); #Halt program.
 
 
 
@@ -84,7 +93,6 @@ def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 	#Get file header;
 	headerHex:str = getHeader(
 		numberOfInstructions,
-		shared.graphicsMode,
 		max(len(shared.ROM_INDEX)-1,0) #Number of ROM segments. Will always have 1 extra for the END index.
 	);
 

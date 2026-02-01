@@ -4,7 +4,7 @@
 #include "includes.h"
 #include "constants.h"
 #include "utils.h"
-
+#include "graphics.h"
 
 
 
@@ -117,6 +117,7 @@ Ia | Ib | F B | I N S T R |
 	}
 
 
+	std::cout << std::to_string(opcode) << ":" << std::to_string(flagBits) << std::endl;
 	switch (opcode) {
 		case NOP: { //Do nothing
 			break;
@@ -303,12 +304,12 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case SHF: { //Bitshift A by B.
-			bool RSH = accessBit(flagBits, 0u);
-			if ((*Bptr) < 0) {RSH = !RSH;};
-			if (RSH){
-				(*result) = (*Aptr) >> (*Bptr);
-			} else {
+			bool LSH = accessBit(flagBits, 0u);
+			if ((*Bptr) < 0) {LSH = !LSH;};
+			if (LSH){
 				(*result) = (*Aptr) << (*Bptr);
+			} else {
+				(*result) = (*Aptr) >> (*Bptr);
 			}
 			returnsValue = true;
 			break;			
@@ -327,6 +328,7 @@ Ia | Ib | F B | I N S T R |
 				case 2u: { //RAMwrite
 					//Writes value in result register to RAM address (A<<8)|B
 					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
+					std::cout << std::to_string(RAMaddr) << std::endl;
 					randomAccessMemory[RAMaddr] = registers[REG_RESULT];
 					break;
 				}
@@ -454,6 +456,10 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 		if (gaveResult) {
 			registers[REG_RESULT] = result;
 		}
+
+		//Do screen stuff.
+		graphics::drawCurrentScreen();
+
 		if (!run) {break;}
 	}
 	run = false;

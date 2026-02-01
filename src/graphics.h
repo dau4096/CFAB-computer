@@ -8,19 +8,9 @@ using namespace std;
 
 
 
-enum GraphicsMode {
-	GM_NONE,
-	GM_TEXT,
-	GM_RGBc,
-	GM_256c
-};
 
 
-inline GraphicsMode graphicsMode = GM_NONE;
-
-
-
-namespace ByteColour { //256 colour mode - used by GM_RGBc and more directly by GM_256c
+namespace ANSI256 { //256 colour mode - Used for GM_256c.
 
 //Colour cubes.
 const std::array<unsigned int, 6> cubeLevels = {
@@ -28,77 +18,128 @@ const std::array<unsigned int, 6> cubeLevels = {
 };
 
 
-uint8_t quantizeChannel(unsigned int colourRGB) {
-	uint8_t bestIndex = 0u;
-	float bestDist = 1.0e7f;
+uint8_t quantizeChannel(uint8_t channelV) {
+	if (channelV < 48u) {return 0u;}
+	if (channelV < 114u) {return 1u;}
+	return (channelV - 35u) / 40u;
+}
 
-	//Find closest cube.
-	for (uint8_t i=0u; i<6; i++) {
-		float d = glm::abs(colourRGB - cubeLevels[i]);
-		if (d < bestDist) {
-			bestDist = d;
-			bestIndex = i;
+
+uint8_t rgbToXterm256(uint8_t R, uint8_t G, uint8_t B) {
+	if ((R == G) && (G == B)) { //Greyscale
+		uint8_t greyIndex = (R - 8 + 5) / 10;
+		greyIndex = glm::clamp(greyIndex, uint8_t(0), uint8_t(23));
+		return 232u + greyIndex;
+	}
+
+	uint8_t Rquant = quantizeChannel(R);
+	uint8_t Gquant = quantizeChannel(G);
+	uint8_t Bquant = quantizeChannel(B);
+
+	return 16u + (36u * Rquant) + (6u * Gquant) + Bquant;
+}
+
+
+inline void appendNumber(std::string &s, uint8_t n) {
+	//Quick 8b to string
+	if (n >= 100) {
+		s += '0' + n / 100;
+		n %= 100;
+		s += '0' + n / 10;
+		n %= 10;
+		s += '0' + n;
+	} else if (n >= 10) {
+		s += '0' + n / 10;
+		n %= 10;
+		s += '0' + n;
+	} else {
+		s += '0' + n;
+	}
+}
+
+
+void convertRGB332toXTerm(std::vector<int8_t>* RAMdata, std::vector<uint8_t>* xTermData) {
+	//Convert from 8-bit RRRGGGBB to 256 colour xTerms
+	for (unsigned int y=0u; y<SCREEN_HEIGHT; y++) {
+		for (unsigned int x=0u; x<SCREEN_WIDTH; y++) {
+			unsigned int index = (y*SCREEN_WIDTH)+x;
+			uint8_t RAMvalue = (uint8_t)(RAMdata->at(index));
+
+			//Seperate into R, G and B.
+			//All occupy the first n bits.
+			uint8_t R = (RAMvalue << 0u) & 0xE0u; //First 3 bits
+			uint8_t G = (RAMvalue << 3u) & 0xE0u; //Middle 3
+			uint8_t B = (RAMvalue << 5u) & 0xC0u; //2 final bits
+
+			uint8_t xTerm = rgbToXterm256(R, G, B); //Convert
+			xTermData->at(xTerm);
 		}
 	}
-
-	return bestIndex;
 }
 
 
-uint8_t rgbToXterm256(unsigned int uintR, unsigned int uintG, unsigned int uintB) {
-	glm::uvec3 inputColor = glm::vec3(uintR, uintG, uintB);
+void drawScreenColours(std::vector<uint8_t>& xTermData) {
+	//Move cursor to top-left and disable wraparound.
+	std::string term256;
+	term256.reserve((SCREEN_ELEMENT_SIZE * 12u)); //Estimate.
+	term256 += "\x1b[H\x1b[2J\x1b[3J\x1b[?7l";
 
-	//Map onto the cube.
-	uint8_t indexR = quantizeChannel(uintR);
-	uint8_t IndexG = quantizeChannel(uintG);
-	uint8_t indexB = quantizeChannel(uintB);
+	int lastFG = -1; int lastBG = -1;
 
-	glm::uvec3 cubeColor = glm::uvec3(
-		cubeLevels[indexR],	cubeLevels[IndexG],	cubeLevels[indexB]
-	);
+	unsigned int consoleHeight = SCREEN_HEIGHT / 2u;
+	unsigned int consoleWidth = glm::min(SCREEN_WIDTH, static_cast<unsigned int>(consoleResolution.x));
 
-	uint8_t cubeIndex = 16u + (36u*indexR) + (6u*IndexG) + indexB;
+	for (unsigned int y=consoleHeight; y>0u; y--) {
+		unsigned int topBase = ((y-1) * 2u) * consoleWidth;
+		unsigned int lowBase = topBase + consoleWidth;
 
-	glm::vec3 deltaRGB = inputColor - cubeColor;
-	float cubeDistanceSq = glm::dot(deltaRGB, deltaRGB);
+		for (unsigned int x=0u; x<consoleWidth; x++) {
+			unsigned int topPixel = topBase + x;
+			unsigned int lowPixel = lowBase + x;
 
+			uint8_t top = xTermData.at(topPixel);
+			uint8_t low = xTermData.at(lowPixel);
 
-	//Map to greyscale steps
-	//[8, 18, 28, .., 238] (24 levels, +10 each time.)
+			//Only cout SGR if colour changed
+			if (top != lastBG) { //Background, upper PX.
+				term256 += "\x1b[48;5;";
+				appendNumber(term256, top);
+				term256 += "m";
+				lastBG = top;
+			}
+			if (low != lastFG) { //Foreground, lower PX.
+				term256 += "\x1b[38;5;";
+				appendNumber(term256, low);
+				term256 += "m";
+				lastFG = low;
+			}
 
-	float luminance = float(uintR + uintG + uintB) / 3.0f;
-	uint8_t greyIndex = uint8_t(round((luminance - 8.0f) / 10.0f));
-	greyIndex = glm::clamp(greyIndex, uint8_t(0u), uint8_t(23u)); //Clamp to a step.
-	uint8_t greyValue = 8u + greyIndex * 10u;
+			term256 += "▀"; //UTF half-block char.
+		}
 
-	glm::uvec3 greyColor = glm::uvec3(greyValue, greyValue, greyValue);
-	uint8_t greyCode = 232u + greyIndex;
-
-	glm::vec3 deltaLUM = inputColor - greyColor;
-	float greyDistanceSq = dot(deltaLUM, deltaLUM);
-
-
-	//Choose closer colour;
-	if (greyDistanceSq < cubeDistanceSq) {
-		return greyCode;
-	} else {
-		return cubeIndex;
+		term256 += '\n';
+		lastFG = lastBG = -1; //Reset after each line
 	}
 
+	//Reset formatting, output.
+	term256 += "\x1b[?7h\x1b[0m";
+	fwrite(term256.data(), 1, term256.size(), stdout);
+	fflush(stdout);	
 }
 
 
-uint8_t twoByteToIndex(uint16_t twoByte) {
-
-	//Remap RGB16 
-	unsigned int uintR = ((twoByte >> 10u) & 0x1Fu) << 3; //First 5 bits. Multiplied by 8
-	unsigned int uintG = ((twoByte >> 5u) & 0x3Fu) << 2;  //Next 6 bits. Multiplied by 4
-	unsigned int uintB = ((twoByte >> 0u) & 0x1Fu) << 3;  //Next 5 bits. Multiplied by 8
-
-	return rgbToXterm256(uintR, uintG, uintB);
-
+void drawScreenText(std::vector<uint8_t>& UTFdata) {
+	//TBA.
 }
 
+
+void copyScreenDataIntoVector(std::vector<int8_t>* RAMdata) {
+	RAMdata->reserve(SCREEN_ELEMENT_SIZE);
+	std::copy_n(
+		std::next(randomAccessMemory.begin(), SCREEN_START_INDEX),
+		SCREEN_ELEMENT_SIZE, RAMdata->begin() //Copy values from RAM into the RAMdata vector.
+	);
+}
 
 
 
@@ -107,76 +148,37 @@ uint8_t twoByteToIndex(uint16_t twoByte) {
 
 namespace graphics {
 
+void drawCurrentScreen() {
+	//Read screen from RAM, and display if needed.
+	std::cout << "graphicsMode: GM_";
+	if (graphicsMode == GM_NONE) {std::cout << "NONE" << std::endl; return; /* Don't check ahead, no graphics. */}
 
-//COUT a coloured space char.
-inline void COUTcolour(uint8_t colourIndex) {std::cout << "\033[48;5;" << colourIndex << "m \033[0m";}
+	consoleResolution = utils::getConsoleResolution();
 
+	std::vector<int8_t> RAMdata(SCREEN_ELEMENT_SIZE);
+	ANSI256::copyScreenDataIntoVector(&RAMdata);
 
-void drawRGBc() {
-	for (uint8_t y=0u; y<SCREEN_HEIGHT; y++) {
-		for (uint8_t x=0; x<SCREEN_WIDTH; x++) {
-			uint16_t RAMaddr = SCREEN_INDEX + (static_cast<uint16_t>(y) * SCREEN_WIDTH) + static_cast<uint16_t>(x);
-			uint16_t memoryValue = randomAccessMemory[RAMaddr];
-			uint8_t colourIndex = ByteColour::twoByteToIndex(memoryValue);
-			COUTcolour(colourIndex);
-		}
-		std::cout << "\n"; //Newline without flush.
-	}
-	std::cout << std::flush;
-}
-
-
-void draw256c() {
-	for (uint8_t y=0u; y<SCREEN_HEIGHT; y++) {
-		for (uint8_t x=0; x<SCREEN_WIDTH; x++) {
-			uint16_t RAMaddr = SCREEN_INDEX + (static_cast<uint16_t>(y) * SCREEN_WIDTH) + static_cast<uint16_t>(x);
-			uint16_t memoryValue = randomAccessMemory[RAMaddr];
-			COUTcolour(memoryValue & BITS_8);
-		}
-		std::cout << "\n"; //Newline without flush.
-	}
-	std::cout << std::flush;
-}
-
-
-void drawTEXT() { //GM_TEXT outputs ASCII characters to the terminal via the memory value.
-	for (uint8_t y=0u; y<SCREEN_HEIGHT; y++) {
-		for (uint8_t x=0; x<SCREEN_WIDTH; x++) {
-			uint16_t RAMaddr = SCREEN_INDEX + (static_cast<uint16_t>(y) * SCREEN_WIDTH) + static_cast<uint16_t>(x);
-			uint16_t memoryValue = randomAccessMemory[RAMaddr];
-			std::cout << char(memoryValue);
-		}
-		std::cout << "\n"; //Newline without flush.
-	}
-	std::cout << std::flush;
-}
-
-
-
-void drawScreen() {
 
 	switch (graphicsMode) {
-		case GM_RGBc: { //Use sampling to find closest 256 colour equivalent.
-			drawRGBc();
+		case GM_TEXT: { //Use RAM values as unicode symbols.
+			std::cout << "TEXT" << std::endl;
+			ANSI256::drawScreenText(reinterpret_cast<std::vector<uint8_t>&>(RAMdata)); break;
+		}
+		case GM_256c: { //Directly use values from RAM as colours to be drawn.
+			std::cout << "256c" << std::endl;
+			ANSI256::drawScreenColours(reinterpret_cast<std::vector<uint8_t>&>(RAMdata)); break;
+		}
+		case GM_RGBc: { //Convert values from RAM into RGB Xterms.
+			std::cout << "RGBc" << std::endl;
+			//The 8 bits of each value is divided like so;
+			//RRRGGGBB
+			std::vector<uint8_t> xTermData(SCREEN_ELEMENT_SIZE);
+			ANSI256::convertRGB332toXTerm(&RAMdata, &xTermData);
+			ANSI256::drawScreenColours(xTermData);
 			break;
 		}
-
-		case GM_256c: { //Directly draw using this as index.
-			draw256c();
-			break;
-		}
-
-		case GM_TEXT: {
-			drawTEXT();
-			break;
-		}
-
-		case GM_NONE:
-		default: {
-			return;
-		}
+		default: {break;}
 	}
-
 }
 
 }

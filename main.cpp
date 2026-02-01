@@ -1,6 +1,7 @@
 #include "src/includes.h"
 #include "src/constants.h"
 #include "src/utils.h"
+#include "src/loader.h"
 #include "src/instr.h"
 #include "src/tests.h"
 #include "src/graphics.h"

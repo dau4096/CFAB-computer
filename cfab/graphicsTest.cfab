@@ -1,0 +1,13 @@
+/* graphicsTest.cfab */
+/*
+//Available modes:
+	MODE NONE;
+	MODE TEXT;
+	MODE 256c;
+	MODE RGBc;
+*/
+MODE 256c;
+
+//INSTRs
+rOP = #12;
+RAMwrite #xE #x01; //Screen range is [0xE00 - 0xEFF] (inclusive) in RAM. Thus, if operand A is 0xE, then operand B must be on the screen.

@@ -17,8 +17,8 @@ MAX_MACRO_LENGTH:int = 256; #Max lines in a macro
 
 
 #### GLOBAL ####
-global graphicsMode, ROM_DATA, ROM_INDEX;
-graphicsMode = "NONE";
+global GRAPHICS_MODE, ROM_DATA, ROM_INDEX;
+GRAPHICS_MODE = "NONE";
 ROM_INDEX:list[int] = [] #Start index for this segment [16b]*. Needs to contain ROM_NUMBER + 1.
 ROM_DATA:list[int] = []; #Static data, such as long text strings. [8b]*
 #### GLOBAL ####

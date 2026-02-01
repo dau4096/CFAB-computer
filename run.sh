@@ -44,7 +44,7 @@ fi
 
 
 echo "Press any key to run..."
-read -n1 #read 1 keypress
+#read -n1 #read 1 keypress
 echo
 
 #Run

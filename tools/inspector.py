@@ -21,7 +21,7 @@ class Header:
 		self.ident:str = "".join([chr(int(x)) for x in headerBytes[:4]]);
 		self.version:int = int(headerBytes[4]);
 		self.numberOfInstructions:int = (int(headerBytes[5]) << 8) | int(headerBytes[6]);
-		self.graphicsMode:str = ("GM_NONE", "GM_TEXT", "GM_RGBc", "GM_256c")[headerBytes[7]&0xC0];
+		self.graphicsMode:str = ("NONE", "TEXT", "256c", "RGB")[(headerBytes[7]&0xC0) >> 6];
 		self.numberOfROMSegments:int = ((int(headerBytes[7]) & 0x3F) << 4) | ((int(headerBytes[8]) & 0xF0) >> 4)
 
 		self.valid:bool = self.isValid();
