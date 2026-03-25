@@ -81,7 +81,8 @@ enum GraphicsMode {
 	GM_256c,
 	GM_RGBc
 };
-
+//When defined, will make the screen use double spaces rather than ½ square characters.
+#define SCREEN_DOUBLE_SCALE
 //////// MEMORY ////////
 
 

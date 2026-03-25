@@ -38,9 +38,13 @@ def convertValues(V:str, convertMarkers:bool=True) -> tuple[int, bool]:
 	if V.startswith("r"): #Registers
 		return (int(V.replace("r", "")), False);
 	elif V.startswith("#x"): #Immediate values (Hex)
-		return (int(V.replace("#x",""), 16), True);
+		vInt:int = int(V.replace("#x",""), 16);
+		if (vInt > 127): vInt -= 256;
+		return (vInt, True);
 	elif V.startswith("#b"): #Immediate values (Binary)
-		return (int(V.replace("#b",""), 2), True);
+		vInt:int = int(V.replace("#b",""), 2);
+		if (vInt > 127): vInt -= 256;
+		return (vInt, True);
 	elif V.startswith("#"): #Immediate values (Denary)
 		return (int(V.replace("#d", "").replace("#","")), True);
 	elif V.startswith(":"): #Markers
@@ -204,8 +208,8 @@ INFIX_OPERATORS_MAP:dict[str, str] = {
 	"/":  "div",
 	"%":  "mod",
 	"!":  "not",  #Logical
-	"&":  "and",  #...
-	"|":  "or",   #...
+	"&":  "Band", #...
+	"|":  "Bor",  #...
 	"^":  "xor",  #...
 	"!^": "xnor", #Logical
 	">":  "grt",
@@ -227,6 +231,7 @@ OPERATOR_MAPPING:dict[str, shared.Operation] = {
 	"nop":      shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0000{getOperatorBinary('nop')}{shared.BLANK}{shared.BLANK}",])), #No-Operation
 	"halt":     shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0000{getOperatorBinary('ext')}{shared.BLANK}{shared.BLANK}",])), #Halt/Exit
 	"wait":     shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0001{getOperatorBinary('slp')}{shared.BLANK}{shared.BLANK}",])), #Wait for user input
+	"update":   shared.Operation(type=shared.OperationType.ZERO_OPERANDS, func=(lambda ln : [f"0010{getOperatorBinary('slp')}{shared.BLANK}{shared.BLANK}",])), #Update screen
 
 
 	#1-Operand operations;
@@ -250,6 +255,8 @@ OPERATOR_MAPPING:dict[str, shared.Operation] = {
 	#2-Opcode operations that use other operators;
 	"and":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('mul')}{ln.A}{ln.B}",])), #Logical And
 	"or":       shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}00{getOperatorBinary('add')}{ln.A}{ln.B}",])), #Logical Or
+	"Band":     shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}01{getOperatorBinary('mul')}{ln.A}{ln.B}",])), #Logical And
+	"Bor":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}01{getOperatorBinary('add')}{ln.A}{ln.B}",])), #Logical Or
 	"mod":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}01{getOperatorBinary('div')}{ln.A}{ln.B}",])), #Modulo
 	"neq":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}01{getOperatorBinary('equ')}{ln.A}{ln.B}",])), #Not equal
 	"xor":      shared.Operation(type=shared.OperationType.TWO_OPERAND, func=(lambda ln : [f"{ln.immediates}10{getOperatorBinary('equ')}{ln.A}{ln.B}",])), #Exclusive Or
@@ -441,7 +448,6 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 	parsedLine.src = line;
 
 	ln:shared.Data = shared.Data(parsedLine); #Dataset to contain all of the line values, to be passed into the mapping's func.
-	#print(ln.preA, ln.A, ln.preB, ln.B)
 	instructionList:list[str] = operation(ln);
 
 	if (makeHex):
@@ -463,7 +469,6 @@ def processMarkers(aliasReplaced:list[str]):
 		if (not line.startswith(":")):
 			#Convert lines using convertLine().
 			conversion:list[str] = convertLine(line, makeHex=False, convertMarkers=False);
-			#print(line, conversion)
 			if (len(conversion)):
 				expandedTMP.extend(conversion) #1 line of CFAB can correspond to multiple instructions
 		else:
@@ -480,7 +485,6 @@ def processMarkers(aliasReplaced:list[str]):
 			 JMP :marker
 			 IF (condition) then-goto :marker
 			"""
-			#print(expandedTMP)
 			MARKERS[curLine.replace(":", "").split(" ")[0].upper()] = [
 				accLine for accLine in expandedTMP if (
 					(not (

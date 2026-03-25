@@ -29,27 +29,7 @@ ROM_DATA:list[int] = []; #Static data, such as long text strings. [8b]*
 #### FUNCTIONS ####
 def toBin(value:int) -> str:
 	"Converts some integer value into its signed 8b representation. [STR]";
-
-	absValue:int = abs(value) & 0x7F; #7 bits
-	if (value >= 0): #Positive values
-		return "0" + str(bin(absValue)[2:]).zfill(7);
-
-	else: #Negative values - uses 2's complement.
-		#Redo?
-		places:tuple[int] = (
-			-128, 64, 32,
-			16, 8, 4, 2, 1
-		); 
-		binRep:str = "1";
-		recreatedValue:int = places[0];
-		for place in places[1:]:
-			if ((recreatedValue+place) < value):
-				binRep += "1";
-				recreatedValue += place;
-			else:
-				binRep += "0";
-
-		return binRep;
+	return format(value & 0xFF, "08b");
 #### FUNCTIONS ####
 
 

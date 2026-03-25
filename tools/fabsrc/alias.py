@@ -8,7 +8,14 @@ from fabsrc.shared import FabricationError;
 def replaceAliases(lines:list[str]) -> list[str]:
 	global graphicsMode;
 
-	aliases:dict[str,int] = {};
+	#Contains default aliases, including screen resolution and more.
+	#Will be dynamically added to later, and you *can* overwrite the 
+	aliases:dict[str,int] = {
+		#Screen res;
+		"SCREEN_WIDTH": "#x20",    "SCREEN_HEIGHT": "#x10",
+		#Memory constants;
+		"REG_SIZE": "#x40",        "RAM_SIZE": "#xF00",        "SCREEN_START_INDEX": "#xE"
+	};
 	aliasReplaced:list[str] = [];
 	unassignedAliases:set[str] = set();
 
@@ -31,7 +38,7 @@ def replaceAliases(lines:list[str]) -> list[str]:
 
 		operands:list[str] = curLine.split(" ");
 		for operand in operands: #Find aliases in the current line.
-			res:regex.match = regex.match(rf"(?i)\$[a-z0-9]+(?=$|\W)", operand);
+			res:regex.match = regex.match(rf"(?i)\$[a-z0-9_]+(?=$|\W)", operand);
 			if (res is not None): #Alias found
 				unassignedAliases.add(res.group(0));
 

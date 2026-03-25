@@ -18,9 +18,11 @@ def replaceMacros(lines:list[str], depth:int=0, activeMacros:set[str]=None, prev
 		raise FabricationError(f"Exceeded maximum macro unpacking depth ({MAX_MACRO_UNPACKING})")
 
 
-
-	for lineNum in range(len(lines)):
+	lineNum = 0;
+	while (lineNum < len(lines)):
 		curLine:str = lines[lineNum];
+
+
 
 
 		#Macro has been defined.
@@ -36,12 +38,16 @@ def replaceMacros(lines:list[str], depth:int=0, activeMacros:set[str]=None, prev
 
 			#Save the contents of the macro.
 			for i in range(shared.MAX_MACRO_LENGTH):
+				#print(i, lines)
 				macroLine:str = lines[lineNum + i];
 				if (macroLine.startswith("end")): #End the macro definition
 					lineNum += i;
 					MACROS[macroName] = shared.Macro(name=macroName, params=macroParams, lines=macroLines); #Store this macro.
 					break;
 				macroLines.append(macroLine);
+
+
+
 
 
 		#Macro has been called.
@@ -86,15 +92,20 @@ def replaceMacros(lines:list[str], depth:int=0, activeMacros:set[str]=None, prev
 
 
 			#If a macro was found inside this macro, recursively call this func to unpack that too.
-			macrosReplaced.extend(replaceMacros(expandedLines, depth + 1, activeMacros, macro.name));
+			macrosReplaced.extend(replaceMacros(expandedLines[1:], depth + 1, activeMacros, macro.name));
 			activeMacros.remove(macro.name);
+
+
+
+
 
 
 		#Any other lines.
 		else:
 			macrosReplaced.append(curLine);
 
+		lineNum += 1;
 
 
-	del MACROS;
+
 	return macrosReplaced;

@@ -61,7 +61,7 @@ inline void appendNumber(std::string &s, uint8_t n) {
 void convertRGB332toXTerm(std::vector<int8_t>* RAMdata, std::vector<uint8_t>* xTermData) {
 	//Convert from 8-bit RRRGGGBB to 256 colour xTerms
 	for (unsigned int y=0u; y<SCREEN_HEIGHT; y++) {
-		for (unsigned int x=0u; x<SCREEN_WIDTH; y++) {
+		for (unsigned int x=0u; x<SCREEN_WIDTH; x++) {
 			unsigned int index = (y*SCREEN_WIDTH)+x;
 			uint8_t RAMvalue = (uint8_t)(RAMdata->at(index));
 
@@ -71,13 +71,21 @@ void convertRGB332toXTerm(std::vector<int8_t>* RAMdata, std::vector<uint8_t>* xT
 			uint8_t G = (RAMvalue << 3u) & 0xE0u; //Middle 3
 			uint8_t B = (RAMvalue << 5u) & 0xC0u; //2 final bits
 
+			std::cout << R << " " << G << " " << B << std::endl;
 			uint8_t xTerm = rgbToXterm256(R, G, B); //Convert
-			xTermData->at(xTerm);
+			xTermData->at(index) = xTerm;
 		}
 	}
 }
 
 
+
+
+
+
+
+//SCREEN_DOUBLE_SCALE Changes the screen to draw 2 spaces rather than ½ square characters. Quadruples screen size.
+#ifndef SCREEN_DOUBLE_SCALE //NOT defined, small pixels.
 void drawScreenColours(std::vector<uint8_t>& xTermData) {
 	//Move cursor to top-left and disable wraparound.
 	std::string term256;
@@ -86,12 +94,13 @@ void drawScreenColours(std::vector<uint8_t>& xTermData) {
 
 	int lastFG = -1; int lastBG = -1;
 
+
 	unsigned int consoleHeight = SCREEN_HEIGHT / 2u;
 	unsigned int consoleWidth = glm::min(SCREEN_WIDTH, static_cast<unsigned int>(consoleResolution.x));
 
 	for (unsigned int y=consoleHeight; y>0u; y--) {
-		unsigned int topBase = ((y-1) * 2u) * consoleWidth;
-		unsigned int lowBase = topBase + consoleWidth;
+		unsigned int topBase = ((y-1u) * 2u) * SCREEN_WIDTH;
+		unsigned int lowBase = topBase + SCREEN_WIDTH;
 
 		for (unsigned int x=0u; x<consoleWidth; x++) {
 			unsigned int topPixel = topBase + x;
@@ -126,6 +135,42 @@ void drawScreenColours(std::vector<uint8_t>& xTermData) {
 	fwrite(term256.data(), 1, term256.size(), stdout);
 	fflush(stdout);	
 }
+
+#else //IS defined, large pixels.
+void drawScreenColours(std::vector<uint8_t>& xTermData) {
+	//Move cursor to top-left and disable wraparound.
+	std::string term256;
+	term256.reserve((SCREEN_ELEMENT_SIZE * 12u)); //Estimate.
+	term256 += "\x1b[H\x1b[2J\x1b[3J\x1b[?7l";
+	int lastColour = -1;
+
+	unsigned int consoleWidth = glm::min(SCREEN_WIDTH, static_cast<unsigned int>(consoleResolution.x));
+	for (unsigned int y=SCREEN_HEIGHT; y>0u; y--) {
+		for (unsigned int x=0u; x<consoleWidth; x++) {
+			unsigned int index = ((y-1u) * SCREEN_WIDTH) + x;
+			uint8_t xTerm = xTermData.at(index);
+			if (xTerm != lastColour) {
+				term256 += "\x1b[48;5;"; //Add colour to background.
+				appendNumber(term256, xTerm);
+				term256 += "m";
+				lastColour = xTerm;
+			}
+			term256 += "  "; //2 spaces.
+		}
+		term256 += '\n';
+		lastColour = -1; //Reset after each line
+	}
+
+	//Reset formatting, output.
+	term256 += "\x1b[?7h\x1b[0m";
+	fwrite(term256.data(), 1, term256.size(), stdout);
+	fflush(stdout);	
+}
+#endif
+
+
+
+
 
 
 void drawScreenText(std::vector<uint8_t>& UTFdata) {
@@ -179,6 +224,13 @@ void drawCurrentScreen() {
 		}
 		default: {break;}
 	}
+
+	std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";       //0101 1111
+	std::cout << std::to_string(randomAccessMemory[0xE01]) << " ";       //1001 1100
+	std::cout << std::to_string(randomAccessMemory[0xE02]) << std::endl; //1000 0011
+
+	//std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";
+	//std::cout << std::to_string(randomAccessMemory[0xE00]) << std::endl;
 }
 
 }

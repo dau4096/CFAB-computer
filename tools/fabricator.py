@@ -64,7 +64,6 @@ def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 	#Process BRANCH markers
 	translate.processMarkers(aliasReplaced);
 
-
 	#Acctually convert lines to fabricated hex now.
 	instructionHexList:list[str] = [];
 	for line in aliasReplaced:
@@ -72,8 +71,6 @@ def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 			#Convert lines using convertLine(), and convert to Hexadecimal.
 			instructionHexList.extend(translate.convertLine(line, makeHex=True, convertMarkers=True)) #1 line of CFAB src can correspond to multiple instructions
 	del aliasReplaced;
-
-	instructionHexList.extend(translate.convertLine("HALT", makeHex=True)); #Halt program.
 
 
 
@@ -120,7 +117,7 @@ def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 if (__name__ == "__main__"):
 	"Converts CFAB source file to into a CFAB data file to be interpreted.";
 
-	inFileName:str = "help.cfab"; #Fallback filename, if none provided.
+	inFileName:str = "graphicsTest.cfab"; #Fallback filename, if none provided.
 	if len(sys.argv) > 1: #Was given some argument(s). Treat as file(names).
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):	outFileName = sys.argv[2]; #Ditto but with seperate out-file name.

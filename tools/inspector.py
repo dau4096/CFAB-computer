@@ -21,7 +21,7 @@ class Header:
 		self.ident:str = "".join([chr(int(x)) for x in headerBytes[:4]]);
 		self.version:int = int(headerBytes[4]);
 		self.numberOfInstructions:int = (int(headerBytes[5]) << 8) | int(headerBytes[6]);
-		self.graphicsMode:str = ("NONE", "TEXT", "256c", "RGB")[(headerBytes[7]&0xC0) >> 6];
+		self.graphicsMode:str = ("NONE", "TEXT", "256c", "RGBc")[(headerBytes[7]&0xC0) >> 6];
 		self.numberOfROMSegments:int = ((int(headerBytes[7]) & 0x3F) << 4) | ((int(headerBytes[8]) & 0xF0) >> 4)
 
 		self.valid:bool = self.isValid();
@@ -96,9 +96,9 @@ class Instruction:
 			"NOP": ("No-Operation",),
 			"SET": ("Set register",),
 			"MOV": ("Move register",),
-			"ADD": ("Bitwise OR", "Addition/Logical OR",),
+			"ADD": ("Addition/Logical OR", "Bitwise OR"),
 			"SUB": ("Subtract",),
-			"MUL": ("Bitwise AND", "Multiplication/Logical AND",),
+			"MUL": ("Multiplication/Logical AND", "Bitwise AND",),
 			"DIV": ("Division", "Modulus",),
 			"NOT": ("Logical NOT", "Bitwise NOT", "Numerical Inversion", "Absolute Value",),
 			"EQU": ("Equals", "Not Equals", "Bitwise XOR", "Bitwise XNOR",),
@@ -107,7 +107,7 @@ class Instruction:
 			"I_O": ("Get-Input", "Set-Output", "COUT Value", "COUT String",),
 			"SHF": ("Right-Shift", "Left-Shift",),
 			"EXT": ("Halt", "Fill Registers", "RAM-Write", "RAM-Read",),
-			"SLP": ("Sleep [Input]", "Sleep [ms]",),
+			"SLP": ("Sleep [Input]", "Sleep [ms]", "Update screen [if applicable]",),
 			"MEM": ("Fill RAM in Range", "Copy RAM in Range", "Load ROM Segment",)
 		}
 		if (

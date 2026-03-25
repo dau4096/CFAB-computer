@@ -117,7 +117,6 @@ Ia | Ib | F B | I N S T R |
 	}
 
 
-	std::cout << std::to_string(opcode) << ":" << std::to_string(flagBits) << std::endl;
 	switch (opcode) {
 		case NOP: { //Do nothing
 			break;
@@ -328,7 +327,6 @@ Ia | Ib | F B | I N S T R |
 				case 2u: { //RAMwrite
 					//Writes value in result register to RAM address (A<<8)|B
 					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
-					std::cout << std::to_string(RAMaddr) << std::endl;
 					randomAccessMemory[RAMaddr] = registers[REG_RESULT];
 					break;
 				}
@@ -344,11 +342,20 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case SLP: { //Sleep until event, or for specified time.
-			if (accessBit(flagBits, 0u)) { //Wait for user input
-				//TBA
-			} else { //Wait specified number of ms
-				unsigned int sleepMS = get16Bit(Aptr, Bptr);
-				std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
+			switch (flagBits) {
+				case 0u: { //Wait for user input
+					//TBA
+					break;
+				}
+				case 1u: { //Wait specified number of ms
+					unsigned int sleepMS = get16Bit(Aptr, Bptr);
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
+					break;
+				}
+				case 2u: { //Update the screen.
+					graphics::drawCurrentScreen();
+					break;
+				}
 			}
 			break;
 		}
@@ -457,8 +464,6 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 			registers[REG_RESULT] = result;
 		}
 
-		//Do screen stuff.
-		graphics::drawCurrentScreen();
 
 		if (!run) {break;}
 	}
