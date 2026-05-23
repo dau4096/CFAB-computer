@@ -3,6 +3,7 @@
 #include "includes.h"
 #include "constants.h"
 #include "utils.h"
+#include "instr.h"
 
 using namespace std;
 
@@ -58,7 +59,7 @@ bool parseHeader(std::array<uint8_t, HEADER_LENGTH_BYTES>& header, const std::st
 }
 
 
-bool loadInstructions(std::vector<uint8_t>& byteData, std::vector<unsigned int>* instructionData) {
+bool loadInstructions(std::vector<uint8_t>& byteData, std::vector<Instruction>* instructionData) {
 	//24b instructions --> 3 bytes
 	programCounter = 0u;
 	run = true;
@@ -69,7 +70,7 @@ bool loadInstructions(std::vector<uint8_t>& byteData, std::vector<unsigned int>*
 			return false;
 		}
 
-		unsigned int instruction = (
+		Instruction instruction = Instruction(
 			(static_cast<unsigned int>(byteData[byteIndex]) << 16u) |
 			(static_cast<unsigned int>(byteData[byteIndex + 1u]) << 8u) |
 			(static_cast<unsigned int>(byteData[byteIndex + 2u]))
@@ -122,7 +123,7 @@ bool loadROMData(std::vector<uint8_t>& byteData, size_t romIndexOffset) {
 }
 
 
-bool loadCFABFile(const std::string& filePath, std::vector<unsigned int>* instructionData) {
+bool loadCFABFile(const std::string& filePath, std::vector<Instruction>* instructionData) {
 	//Read file
 	std::vector<uint8_t> byteData;
 	if (!loadBytesData(filePath, byteData)) {

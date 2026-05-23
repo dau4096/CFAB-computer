@@ -181,7 +181,7 @@ void drawScreenText(std::vector<uint8_t>& UTFdata) {
 void copyScreenDataIntoVector(std::vector<int8_t>* RAMdata) {
 	RAMdata->reserve(SCREEN_ELEMENT_SIZE);
 	std::copy_n(
-		std::next(randomAccessMemory.begin(), SCREEN_START_INDEX),
+		randomAccessMemory + SCREEN_START_INDEX,
 		SCREEN_ELEMENT_SIZE, RAMdata->begin() //Copy values from RAM into the RAMdata vector.
 	);
 }

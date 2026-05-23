@@ -1,19 +1,31 @@
 CC = g++
-CFLAGS = -std=c++23 -O3 -march=native -ffast-math
+INCLUDE = -I/usr/include -I/usr/local/include
 
 LIBS = -lm -ldl -pthread
 
 SOURCES = main.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
+BINFILE = prgm.x86_64
 
-all: prgm
 
-prgm: $(OBJECTS)
-	$(CC) $(OBJECTS) $(LIBS) -o prgm
+.PHONY: all release debug clean
+
+all: release
+
+
+release: CFLAGS = -std=c++23 -O3 -march=native -ffast-math
+release: $(OBJECTS)
+	$(CC) $(OBJECTS) $(LIBS) -o $(BINFILE)
+
+
+debug: CFLAGS = -std=c++23 -O0 -g3
+debug: $(OBJECTS)
+	$(CC) $(CFLAGS) $(OBJECTS) $(LIBS) -o $(BINFILE)
+
+
 
 %.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS) prgm
-
+	rm -f $(OBJECTS) $(BINFILE)

@@ -9,7 +9,7 @@ using namespace std;
 
 
 
-std::vector<unsigned int> testInstructions;
+std::vector<Instruction> testInstructions;
 
 inline void assertOrThrow(bool condition, const std::string& message) {
     if (!condition) {
@@ -30,8 +30,9 @@ namespace tests {
 
 void testSETImmediate() {
 	//A = B
+	std::cout << "SET-immediate";
 	testInstructions = {
-		0x410001u, //SET r0 to #1
+		Instruction(0x410001u), //SET r0 to #1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -43,9 +44,10 @@ void testSETImmediate() {
 
 void testSETRegister() {
 	//A = B
+	std::cout << "SET-copy";
 	registers[0u] = 5; //SET r0 to 5
 	testInstructions = {
-		0x010100u, //SET r1 to r0's value
+		Instruction(0x010100u), //SET r1 to r0's value
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -57,9 +59,10 @@ void testSETRegister() {
 
 void testMOV() {
 	//A ~ B
+	std::cout << "MOV";
 	registers[0u] = 3; //SET r0 to 3
 	testInstructions = {
-		0x020001u //MOV r0 to r1
+		Instruction(0x020001u) //MOV r0 to r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -75,9 +78,10 @@ void testMOV() {
 
 void testClear() {
 	//Clears all registers to 0.
+	std::cout << "CLEAR-registers";
 	registers[1u] = 2; //SET r1 to 2
 	testInstructions = {
-		0x9D0000u, //EXT --> CLEAR_REGISTERS to 0.
+		Instruction(0x9D0000u), //EXT --> CLEAR_REGISTERS to 0.
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -89,9 +93,10 @@ void testClear() {
 
 void testRAMwrite() {
 	//Write to RAM.
+	std::cout << "RAM-write";
 	registers[REG_RESULT] = 16; //SET result register to 16
 	testInstructions = {
-		0xED0004, //Write value in result register to RAM address 4
+		Instruction(0xED0004), //Write value in result register to RAM address 4
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -103,9 +108,10 @@ void testRAMwrite() {
 
 void testRAMread() {
 	//Read value from RAM
+	std::cout << "RAM-read";
 	randomAccessMemory[12u] = -8; //Force-Write value to RAM to test
 	testInstructions = {
-		0xFD000Cu, //Read value at RAM address 12 into result register
+		Instruction(0xFD000Cu), //Read value at RAM address 12 into result register
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -126,10 +132,11 @@ void testRAMread() {
 
 void testADD() {
 	//A + B
+	std::cout << "ADD";
 	registers[0u] = 1; //SET r0 to 1
 	registers[1u] = 2; //SET r1 to 2
 	testInstructions = {
-		0x030001u //ADD r0 to r1
+		Instruction(0x030001u) //ADD r0 to r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -141,10 +148,11 @@ void testADD() {
 
 void testSUB() {
 	//A - B
+	std::cout << "SUB";
 	registers[0u] = 10; //SET r0 to 10
 	registers[1u] = 2; //SET r1 to 2
 	testInstructions = {
-		0x040001u, //SUB r1 from r0
+		Instruction(0x040001u), //SUB r1 from r0
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -156,10 +164,11 @@ void testSUB() {
 
 void testMUL() {
 	//A * B
+	std::cout << "MUL";
 	registers[0u] = 8; //SET r0 to 8
 	registers[1u] = 4; //SET r1 to 4
 	testInstructions = {
-		0x050001u, //MUL r0 by r1
+		Instruction(0x050001u), //MUL r0 by r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -171,10 +180,11 @@ void testMUL() {
 
 void testDIV() {
 	//A / B
+	std::cout << "DIV";
 	registers[0u] = 8; //SET r0 to 8
 	registers[1u] = 4; //SET r1 to 4
 	testInstructions = {
-		0x060001u, //DIV r0 by r1
+		Instruction(0x060001u), //DIV r0 by r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -186,10 +196,11 @@ void testDIV() {
 
 void testMOD() {
 	//A / B
+	std::cout << "MOD";
 	registers[0u] = 12; //SET r0 to 12
 	registers[1u] = 7; //SET r1 to 7
 	testInstructions = {
-		0x160001u, //MOD r0 by r1
+		Instruction(0x160001u), //MOD r0 by r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -201,9 +212,10 @@ void testMOD() {
 
 void testINV() {
 	//-A
+	std::cout << "INV";
 	registers[0u] = 8; //SET r0 to 8
 	testInstructions = {
-		0x270000u, //Numerically invert r0
+		Instruction(0x270000u), //Numerically invert r0
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -215,9 +227,10 @@ void testINV() {
 
 void testABS() {
 	//abs(A)
+	std::cout << "ABS";
 	registers[0u] = -8; //SET r0 to -8
 	testInstructions = {
-		0x370000u, //Absolute value of r0
+		Instruction(0x370000u), //Absolute value of r0
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -229,9 +242,10 @@ void testABS() {
 
 void testSHF_L() {
 	//A << B
+	std::cout << "SHF-left";
 	registers[0u] = 2; //SET r0 to 2
 	testInstructions = {
-		0x4C0004u, //Left-shift r0 by #4
+		Instruction(0x4C0004u), //Left-shift r0 by #4
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -243,9 +257,10 @@ void testSHF_L() {
 
 void testSHF_R() {
 	//A >> B
+	std::cout << "SHF-right";
 	registers[0u] = 32; //SET r0 to 32
 	testInstructions = {
-		0x5C0004u, //Right-shift r0 by #4
+		Instruction(0x5C0004u), //Right-shift r0 by #4
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -266,10 +281,11 @@ void testSHF_R() {
 
 void testAND() {
 	//Bitwise AND
+	std::cout << "AND";
 	registers[0u] = 31; //SET r0 to 31
 	registers[1u] = 7; //SET r1 to 7
 	testInstructions = {
-		0x150001u, //Bitwise r0 AND r1
+		Instruction(0x150001u), //Bitwise r0 AND r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -281,10 +297,11 @@ void testAND() {
 
 void testOR() {
 	//Bitwise OR
+	std::cout << "OR";
 	registers[0u] = 9; //SET r0 to 9
 	registers[1u] = 5; //SET r1 to 5
 	testInstructions = {
-		0x130001u, //Bitwise r0 OR r1
+		Instruction(0x130001u), //Bitwise r0 OR r1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -296,14 +313,15 @@ void testOR() {
 
 void testEQU() {
 	//A == B and A != B
+	std::cout << "EQU/NEQ";
 	registers[0u] = 9; //SET r0 to 9
 	registers[1u] = 8; //SET r1 to 8
 	testInstructions = {
-		0x080001u, //r0 == r1 [FALSE]
-		0x023F02u, //Move result to r2
+		Instruction(0x080001u), //r0 == r1 [FALSE]
+		Instruction(0x023F02u), //Move result to r2
 
-		0x180001u, //r0 != r1 [TRUE]
-		0x023F03u, //Move result to r3
+		Instruction(0x180001u), //r0 != r1 [TRUE]
+		Instruction(0x023F03u), //Move result to r3
 	};
 
 	CFAB::runInstructionSet(testInstructions);
@@ -321,14 +339,15 @@ void testEQU() {
 
 void testXOR() {
 	//A ^ B and ~(A ^ B)
+	std::cout << "XOR/XNOR";
 	registers[0u] = 9; //SET r0 to 9
 	registers[1u] = 8; //SET r1 to 8
 	testInstructions = {
-		0x280001u, //r0 ^ r1
-		0x023F02u, //Move result to r2
+		Instruction(0x280001u), //r0 ^ r1
+		Instruction(0x023F02u), //Move result to r2
 
-		0x380001u, //~(r0 ^ r1)
-		0x023F03u, //Move result to r3
+		Instruction(0x380001u), //~(r0 ^ r1)
+		Instruction(0x023F03u), //Move result to r3
 	};
 
 	CFAB::runInstructionSet(testInstructions);
@@ -355,16 +374,17 @@ void testXOR() {
 
 void testBRN() {
 	//Conditional branch, Jump, inverse conditional branch
+	std::cout << "BEQ/JMP/BNE";
 
 	//Conditional
 	programCounter = 0u;
 	registers[REG_RESULT] = 1; //SET result register to 1
 	testInstructions = {
-		0xEA0008u //Branch to line 8 if rOP
+		Instruction(0xEA0008u) //Branch to line 8 if rOP
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
-		programCounter == 8u,
+		programCounter == 8,
 		"Did not jump to line 8 when result was true"
 	);	
 
@@ -372,11 +392,11 @@ void testBRN() {
 	programCounter = 0u;
 	registers[REG_RESULT] = 0; //SET result register to 0
 	testInstructions = {
-		0xCA0010u //Branch to line 16 unconditionally
+		Instruction(0xCA0010u) //Branch to line 16 unconditionally
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
-		programCounter == 16u,
+		programCounter == 16,
 		"Did not jump to line 16 unconditionally"
 	);
 
@@ -384,11 +404,11 @@ void testBRN() {
 	programCounter = 0u;
 	registers[REG_RESULT] = 0; //SET result register to 0
 	testInstructions = {
-		0xFA0020u //Branch to line 32 if not result
+		Instruction(0xFA0020u) //Branch to line 32 if not result
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
-		programCounter == 32u,
+		programCounter == 32,
 		"Did not jump to line 32 when result is 0"
 	);
 
@@ -397,9 +417,10 @@ void testBRN() {
 
 void testExit() {
 	//Halt instruction
+	std::cout << "HALT";
 	run = true;
 	testInstructions = {
-		0x0D0000u, //EXT --> HALT_PROGRAM
+		Instruction(0x0D0000u), //EXT --> HALT_PROGRAM
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -411,9 +432,10 @@ void testExit() {
 
 void testInput() {
 	//Input value
+	std::cout << "I_O-input";
 	inputBits = 0x01FFu;
 	testInstructions = {
-		0x0B0001, //Read input bits to registers 0 and 1
+		Instruction(0x0B0001), //Read input bits to registers 0 and 1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -425,11 +447,12 @@ void testInput() {
 
 void testOutput() {
 	//Output value
+	std::cout << "I_O-output";
 	registers[0u] = 1;  //0x01 Rep.
 	registers[1u] = -1; //0xFF Rep.
 	//Total is 0x01FF
 	testInstructions = {
-		0x1B0001, //Write output bits from values stored in registers 0 and 1
+		Instruction(0x1B0001), //Write output bits from values stored in registers 0 and 1
 	};
 	CFAB::runInstructionSet(testInstructions);
 	assertOrThrow(
@@ -467,20 +490,28 @@ const std::vector<std::function<void()>> tests = {
 void doTests() {
 	//Tests specific cases using assertOrThrow.
 
-	std::cout << std::endl;
+	unsigned int numPassed = 0u;
 	//Main tests
 	for (std::function<void()> test : tests) {
-		std::fill(registers.begin(), registers.end(), static_cast<int8_t>(0)); //Clear all registers.
+		std::fill(registers, registers + REG_COUNT, static_cast<int8_t>(0)); //Clear all registers.
 		programCounter = 0u;
 		run = true;
 
 		try {
 			test();
-			std::cout << "\033[1;32m[TEST PASSED]\033[0;m" << std::endl;
+			numPassed++;
+			std::cout << " \033[32G\033[1;32m[TEST PASSED]\033[0;m" << std::endl;
 		} catch (const std::exception& e) {
-			std::cerr << std::endl << "\033[1;31m[TEST FAILED]\033[0;m : \033[1;33m" << e.what() << "\033[0;m" << std::endl << std::endl;
+			std::cerr << " \033[32G\033[1;31m[TEST FAILED]\033[0;m : \033[1;33m" << e.what() << "\033[0;m" << std::endl << std::endl;
 		}
 	}
+
+	std::cout << std::format(
+		"\033[1;33m[RESULTS] ({:.0f}%) \033[0;m: ",
+		100.0f * static_cast<float>(numPassed) / static_cast<float>(tests.size())
+	);
+	std::cout << "\033[1;32mPASS: " << numPassed << ", ";
+	std::cout << "\033[1;31mFAILED: " << tests.size() - numPassed << "\033[0;m" << std::endl;
 }
 
 }

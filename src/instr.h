@@ -6,36 +6,6 @@
 #include "utils.h"
 #include "graphics.h"
 
-
-
-namespace CFAB {
-
-inline unsigned int accessBit(const unsigned int& bits, const unsigned int index) {
-	return (bits >> index) & BITS_1;
-}
-
-std::array<int8_t, 2> operandsTMP;
-inline int8_t* getOperand(const unsigned int& instruction, const unsigned int index, bool* isImmediate) {
-	int8_t operand = static_cast<int8_t>((instruction >> (1u-index)*8u) & BITS_8);
-	*isImmediate = accessBit(instruction, 23u-index);
-	if (*isImmediate) { //Not a register index, has specific value.
-		int oIdx = static_cast<int>(index);
-		operandsTMP[oIdx] = operand;
-		return &(operandsTMP[oIdx]);
-	} else { //Register index 0-127.
-		uint8_t registerIndex = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operand), 0u, REG_COUNT-1u));
-		return &(registers[registerIndex]);
-	}
-}
-
-
-inline uint16_t get16Bit(int8_t* Aptr, int8_t* Bptr) {
-	return (static_cast<uint16_t>(static_cast<uint8_t>(*Aptr)) << 8u) | static_cast<uint16_t>(static_cast<uint8_t>(*Bptr));
-}
-
-
-bool needsNewLN;
-bool executeInstruction(const unsigned int instruction, int8_t* result, bool silenceDebug=false) {
 /*
 FB_ --> 2 flag-bits in instr; values 0-3.
 A/B --> The values in the instruction; can be register addresses or immediate values.
@@ -66,14 +36,20 @@ Ia | Ib | F B | I N S T R |
  MEM | 1111 |  F  | 
 */
 
-	bool Aimmediate, Bimmediate;
-	int8_t* Aptr = getOperand(instruction, 0u, &Aimmediate); //First operand
-	int8_t* Bptr = getOperand(instruction, 1u, &Bimmediate); //Second operand
-	uint8_t opcode = (instruction >> 16u) & BITS_4;
-	uint8_t flagBits = (instruction >> 20) & BITS_2;
 
+namespace CFAB {
+
+
+
+#define B16(instr) ((static_cast<uint16_t>(instr.A) << 8) | static_cast<uint16_t>(instr.B))
+
+
+bool needsNewLN;
+bool executeInstruction(Instruction& instr, int8_t* result, bool silenceDebug=false) {
 	bool returnsValue = false;
 
+	if (!instr.Aimmediate) {instr.A = *instr.Aptr;}
+	if (!instr.Bimmediate) {instr.B = *instr.Bptr;}
 
 	if (!silenceDebug && verbose) {
 		const std::array<std::string, 16> opcodeMap = {
@@ -89,26 +65,26 @@ Ia | Ib | F B | I N S T R |
 			"INPUT", "OUTPUT", "COUT", "I_O"
 		};
 
-		std::string opcodeName = opcodeMap[opcode];
+		std::string opcodeName = opcodeMap[instr.opcode];
 		if (opcodeName == "EXT") {
-			opcodeName = extMap[flagBits];
+			opcodeName = extMap[instr.flags];
 		} else if (opcodeName == "I_O") {
-			opcodeName = i_oMap[flagBits];
+			opcodeName = i_oMap[instr.flags];
 		}
 
-		std::cout << "\033[0;mBytes: \033[1;35m0x" << std::hex << instruction << "\033[0;m, Instruction: \033[1;35m" << opcodeName;
-		std::cout << "\033[0;m, Flag-Bits: \033[1;35m" << std::to_string(flagBits);
-		if (Aimmediate) {
-			std::cout << "\033[0;m, A-value: \033[1;36m" << std::to_string(*Aptr);
+		std::cout << "\033[0;mBytes: \033[1;35m0x" << std::hex << instr.raw << "\033[0;m, Instruction: \033[1;35m" << opcodeName;
+		std::cout << "\033[0;m, Flag-Bits: \033[1;35m" << std::to_string(instr.flags);
+		if (instr.Aimmediate) {
+			std::cout << "\033[0;m, A-value: \033[1;36m" << std::to_string(instr.A);
 		} else {
-			int8_t operandA = static_cast<int8_t>((instruction >> 8u) & BITS_8);
+			int8_t operandA = static_cast<int8_t>((instr.raw >> 8u) & BITS_8);
 			uint8_t registerIndexA = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandA), 0u, REG_COUNT-1u));
 			std::cout << "\033[0;m, A-index: \033[1;36mr" << std::to_string(registerIndexA) << " [" << std::to_string(registers[registerIndexA]) << "]";
 		}
-		if (Bimmediate) {
-			std::cout << "\033[0;m, B-value: \033[1;36m" << std::to_string(*Bptr);
+		if (instr.Bimmediate) {
+			std::cout << "\033[0;m, B-value: \033[1;36m" << std::to_string(instr.B);
 		} else {
-			int8_t operandB = static_cast<int8_t>((instruction >> 0u) & BITS_8);
+			int8_t operandB = static_cast<int8_t>((instr.raw >> 0u) & BITS_8);
 			uint8_t registerIndexB = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandB), 0u, REG_COUNT-1u));
 			std::cout << "\033[0;m, B-index: \033[1;36mr" << std::to_string(registerIndexB) << " [" << std::to_string(registers[registerIndexB]) << "]";
 		}
@@ -117,56 +93,56 @@ Ia | Ib | F B | I N S T R |
 	}
 
 
-	switch (opcode) {
+	switch (instr.opcode) {
 		case NOP: { //Do nothing
 			break;
 		}
 
 		case SET: { //Set or copy register values
-			if (Aimmediate) {break; /* Do not allow. */}
-			(*Aptr) = (*Bptr);
+			if (instr.Aimmediate) {break; /* Do not allow. */}
+			*instr.Aptr = instr.B;
 			break;
 		}
 
 		case MOV: { //Move register contents
-			if (Aimmediate || Bimmediate) {break; /* Do not allow. */}
-			(*Bptr) = (*Aptr);
-			(*Aptr) = 0;
+			if (instr.Aimmediate || instr.Bimmediate) {break; /* Do not allow. */}
+			*instr.Bptr = instr.A;
+			*instr.Aptr = 0;
 			break;
 		}
 
 		case ADD: { //Add 2 values
-			if (accessBit(flagBits, 0u)) { //Bitwise OR
-				(*result) = (*Aptr) | (*Bptr);
+			if (instr.flags & 0b01) { //Bitwise OR
+				(*result) = instr.A | instr.B;
 			} else { //Add / Logical OR.
-				(*result) = (*Aptr) + (*Bptr);
+				(*result) = instr.A + instr.B;
 			}
 			returnsValue = true;
 			break;
 		}
 
 		case SUB: { //Subtract 2 values
-			(*result) = (*Aptr) - (*Bptr);
+			(*result) = instr.A - instr.B;
 			returnsValue = true;
 			break;
 		}
 
 		case MUL: { //Multiply 2 values
-			if (accessBit(flagBits, 0u)) { //Bitwise AND
-				(*result) = (*Aptr) & (*Bptr);
+			if (instr.flags & 0b01) { //Bitwise AND
+				(*result) = instr.A & instr.B;
 			} else { //Multiply / Logical AND.
-				(*result) = (*Aptr) * (*Bptr);
+				(*result) = instr.A * instr.B;
 			}
 			returnsValue = true;
 			break;
 		}
 
 		case DIV: { //Divide 2 values
-			if (*Bptr) { //Nonzero divisor
-				if (accessBit(flagBits, 0u)) { //Modulus
-					(*result) = (*Aptr) % (*Bptr);
+			if (instr.B) { //Nonzero divisor
+				if (instr.flags & 0b01) { //Modulus
+					(*result) = instr.A % instr.B;
 				} else { //Division
-					(*result) = (*Aptr) / (*Bptr);
+					(*result) = instr.A / instr.B;
 				}
 			} else { //Div-0
 				(*result) = 0;
@@ -176,21 +152,21 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case NOT: { //Inverts or gets opposite.
-			switch (flagBits) {
-				case 0u: { //Logical NOT.
-					(*result) = (accessBit(*Aptr, 0)) ? 0 : 1;
+			switch (instr.flags) {
+				case 0b00: { //Logical NOT.
+					(*result) = (instr.A & BITS_1) ? 0 : 1;
 					break;
 				}
-				case 1u: { //Bitwise NOT.
-					(*result) = ~(*Aptr);
+				case 0b01: { //Bitwise NOT.
+					(*result) = ~instr.A;
 					break;
 				}
-				case 2u: { //Invert number.
-					(*result) = -(*Aptr);
+				case 0b10: { //Invert number.
+					(*result) = -instr.A;
 					break;
 				}
-				case 3u: { //Absolute value of number.
-					(*result) = std::abs(*Aptr);
+				case 0b11: { //Absolute value of number.
+					(*result) = std::abs(instr.A);
 					break;
 				}
 			}
@@ -199,21 +175,21 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case EQU: { //A==B, A!=B, A^B.
-			switch (flagBits) {
-				case 0u: { //A == B
-					(*result) = (*Aptr) == (*Bptr);
+			switch (instr.flags) {
+				case 0b00: { //A == B
+					(*result) = instr.A == instr.B;
 					break;
 				}
-				case 1u: { //A != B
-					(*result) = (*Aptr) != (*Bptr);
+				case 0b01: { //A != B
+					(*result) = instr.A != instr.B;
 					break;
 				}
-				case 2u: { //Bitwise XOR
-					(*result) = (*Aptr) ^ (*Bptr);
+				case 0b10: { //Bitwise XOR
+					(*result) = instr.A ^ instr.B;
 					break;
 				}
-				case 3u: { //Bitwise XNOR
-					(*result) = ~((*Aptr) ^ (*Bptr));
+				case 0b11: { //Bitwise XNOR
+					(*result) = ~(instr.A ^ instr.B);
 					break;
 				}
 			}
@@ -224,54 +200,52 @@ Ia | Ib | F B | I N S T R |
 
 		case GRT: { //A>B, A<B, inclusive/exclusive.
 			unsigned int intermediate;
-			if (accessBit(flagBits, 0u)) { //Less-than
-				intermediate = (*Aptr) < (*Bptr);
+			if (instr.flags & 0b01) { //Less-than
+				intermediate = instr.A < instr.B;
 			} else { //Greater-than
-				intermediate = (*Aptr) > (*Bptr);
+				intermediate = instr.A > instr.B;
 			}
 			//Inclusive/exclusive GRT/LSS.
-			(*result) = intermediate || (accessBit(flagBits, 1u) && ((*Aptr) == (*Bptr)));
+			(*result) = intermediate || ((instr.flags & 0b10) && (instr.A == instr.B));
 			returnsValue = true;
 			break;
 		}
 
 		case BRN: { //Branch conditional/unconditional.
-			bool BRNif0 = accessBit(flagBits, 0u);
-			bool conditional = accessBit(flagBits, 1u);
+			bool BRNif0 = instr.flags & 0b01;
+			bool conditional = instr.flags & 0b10;
 			if (
 				!conditional || //JMP, unconditional
 				((registers[REG_RESULT]!=0) && !BRNif0) || //BRN-If-1
 				(!(registers[REG_RESULT]!=0) && BRNif0)    //BRN-If-0.
 			) {
-				programCounter = get16Bit(Aptr, Bptr);
+				programCounter = B16(instr);
 			}
 			break;
 		}
 
 		case I_O: { //Get input/Set output
-			switch (flagBits) {
-				case 0u: { //Input
-					if (Aimmediate || Bimmediate) {break; /* Do not allow. */}
+			switch (instr.flags) {
+				case 0b00: { //Input
+					if (instr.Aimmediate || instr.Bimmediate) {break; /* Do not allow. */}
 					//Get inputs and write to registers A and B.
-					(*Aptr) = static_cast<int8_t>((inputBits >> 8u) & BITS_8);
-					(*Bptr) = static_cast<int8_t>((inputBits >> 0u) & BITS_8);
+					*instr.Aptr = static_cast<int8_t>((inputBits >> 8u) & BITS_8);
+					*instr.Bptr = static_cast<int8_t>((inputBits >> 0u) & BITS_8);
 					break;
 				}
-				case 1u: { //Output
+				case 0b01: { //Output
 					//Write values of A and B to the output bits.
-					//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
-					outputBits = get16Bit(Aptr, Bptr);
+					outputBits = B16(instr);
 					break;
 				}
-				case 2u: { //std::cout call, effectively.
-					int8_t operandA = static_cast<int8_t>((instruction >> 8u) & BITS_8);
-					uint8_t registerIndexA = static_cast<uint8_t>(maths::clamp(static_cast<unsigned int>(operandA), 0u, REG_COUNT-1u));
-					std::cout << std::to_string(*Aptr) << std::flush;
+				case 0b10: { //std::cout call, effectively.
+					uint8_t registerIndexA = maths::clamp(static_cast<unsigned int>(instr.A), 0u, REG_COUNT-1u);
+					std::cout << std::to_string(instr.A) << std::flush;
 					break;
 				}
-				case 3u: { //Prints char from given char-set.
-					if (!Aimmediate) { //Single "dynamic" char from memory [older method]
-						uint8_t index = static_cast<uint8_t>(*Aptr);
+				case 0b11: { //Prints char from given char-set.
+					if (!instr.Aimmediate) { //Single "dynamic" char from memory [older method]
+						uint8_t index = static_cast<uint8_t>(instr.A);
 						if (index == 0x0Au) {
 							//Newline char
 							std::cout << std::endl;
@@ -281,13 +255,13 @@ Ia | Ib | F B | I N S T R |
 							needsNewLN = true;
 						}
 
-					} else if (Bimmediate) {
+					} else if (instr.Bimmediate) {
 						//Newline cmd
 						std::cout << std::endl;
 						needsNewLN = false;
 
 					} else { //Read longer text from ROM.
-						uint8_t ROMsegmentIndex = static_cast<uint16_t>(*Aptr);
+						uint8_t ROMsegmentIndex = static_cast<uint16_t>(instr.A);
 
 						std::pair<uint16_t, uint16_t> ROMindexPair = readOnlyMemoryIndices[ROMsegmentIndex];
 						uint16_t numberOfCharacters = ROMindexPair.second - ROMindexPair.first;
@@ -303,36 +277,36 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case SHF: { //Bitshift A by B.
-			bool RSH = accessBit(flagBits, 0u);
-			if ((*Bptr) < 0) {RSH = !RSH;};
+			bool RSH = instr.flags & 0b01;
+			if (instr.B < 0) {RSH = !RSH;};
 			if (RSH){
-				(*result) = (*Aptr) >> (*Bptr);
+				(*result) = instr.A >> instr.B;
 			} else {
-				(*result) = (*Aptr) << (*Bptr);
+				(*result) = instr.A << instr.B;
 			}
 			returnsValue = true;
 			break;			
 		}
 
 		case EXT: { //Extra lesser-used commands.
-			switch (flagBits) {
-				case 0u: { //HALT
+			switch (instr.flags) {
+				case 0b00: { //HALT
 					run = false;
 					break;
 				}
-				case 1u: { //Clear all registers to value in operand A.
-					std::fill(registers.begin(), registers.end(), *Aptr);
+				case 0b01: { //Clear all registers to value in operand A.
+					std::fill(registers, registers + REG_COUNT, instr.A);
 					break;
 				}
-				case 2u: { //RAMwrite
+				case 0b10: { //RAMwrite
 					//Writes value in result register to RAM address (A<<8)|B
-					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
+					uint16_t RAMaddr = B16(instr) & BITS_RAM;
 					randomAccessMemory[RAMaddr] = registers[REG_RESULT];
 					break;
 				}
-				case 3u: { //RAMread
+				case 0b11: { //RAMread
 					//Reads value from RAM address (A<<8)|B to result register
-					uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
+					uint16_t RAMaddr = B16(instr) & BITS_RAM;
 					(*result) = randomAccessMemory[RAMaddr];
 					returnsValue = true;
 					break;
@@ -342,17 +316,17 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case SLP: { //Sleep until event, or for specified time.
-			switch (flagBits) {
-				case 0u: { //Wait for user input
+			switch (instr.flags) {
+				case 0b00: { //Wait for user input
 					//TBA
 					break;
 				}
-				case 1u: { //Wait specified number of ms
-					unsigned int sleepMS = get16Bit(Aptr, Bptr);
+				case 0b01: { //Wait specified number of ms
+					unsigned int sleepMS = B16(instr);
 					std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
 					break;
 				}
-				case 2u: { //Update the screen.
+				case 0b10: { //Update the screen.
 					graphics::drawCurrentScreen();
 					break;
 				}
@@ -362,26 +336,26 @@ Ia | Ib | F B | I N S T R |
 
 
 		case MEM: { //Bulk memory management.
-			uint16_t RAMaddr = get16Bit(Aptr, Bptr) & BITS_RAM;
+			uint16_t RAMaddr = B16(instr) & BITS_RAM;
 			*result = 0; //Default to no-success.
 
-			switch (flagBits) {
-				case 0u: { //Clear section of RAM.
+			switch (instr.flags) {
+				case 0b00: { //Clear section of RAM.
 					int8_t clearValue = registers[REG_X];
-					uint16_t RAMend = get16Bit(&registers[REG_Y], &registers[REG_Z]) & BITS_RAM;
+					uint16_t RAMend = ((registers[REG_Y] << 8) | registers[REG_Z]) & BITS_RAM;
 					//Start at RAMaddr, end at RAMend.
 					std::fill(
-						std::next(randomAccessMemory.begin(), RAMaddr),
-						std::next(randomAccessMemory.begin(), RAMend),
+						std::next(randomAccessMemory, RAMaddr),
+						std::next(randomAccessMemory, RAMend),
 						clearValue
 					);
 					*result = 1; //Success
 					break;
 				}
 
-				case 1u: { //Copy section of RAM.
-					uint16_t RAMend = get16Bit(&registers[REG_X], &registers[REG_Y]) & BITS_RAM;
-					uint16_t RAMnew = get16Bit(&registers[REG_Z], &registers[REG_W]) & BITS_RAM;
+				case 0b01: { //Copy section of RAM.
+					uint16_t RAMend = ((registers[REG_X] << 8) | registers[REG_Y]) & BITS_RAM;
+					uint16_t RAMnew = ((registers[REG_Z] << 8) | registers[REG_W]) & BITS_RAM;
 
 					uint16_t copySize = RAMend - RAMaddr;
 					uint16_t freeSpace = RAM_COUNT - RAMnew;
@@ -390,16 +364,16 @@ Ia | Ib | F B | I N S T R |
 					}
 
 					std::copy_n(
-						std::next(randomAccessMemory.begin(), RAMaddr),
+						std::next(randomAccessMemory, RAMaddr),
 						copySize,
-						std::next(randomAccessMemory.begin(), RAMnew)
+						std::next(randomAccessMemory, RAMnew)
 					);
 
 					*result = 1; //Success
 					break;
 				}
 
-				case 2u: { //Copy section of ROM into RAM.
+				case 0b10: { //Copy section of ROM into RAM.
 					uint8_t ROMsegmentIndex = registers[REG_X];
 
 					if (ROMsegmentIndex >= readOnlyMemoryIndices.size()) {
@@ -415,7 +389,7 @@ Ia | Ib | F B | I N S T R |
 					std::copy_n(
 						std::next(readOnlyMemory.begin(), ROMindexPair.first),
 						copySize,
-						std::next(randomAccessMemory.begin(), RAMaddr)
+						std::next(randomAccessMemory, RAMaddr)
 					);
 					
 					*result = 1; //Success
@@ -443,7 +417,7 @@ Ia | Ib | F B | I N S T R |
 }
 
 
-void runInstructionSet(std::vector<unsigned int>& instructionData) {
+void runInstructionSet(std::vector<Instruction>& instructionData) {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start;
 	if (checkSpeed) {
 		start = std::chrono::high_resolution_clock::now();
@@ -452,7 +426,7 @@ void runInstructionSet(std::vector<unsigned int>& instructionData) {
 	int8_t result;
 	needsNewLN = false;
 	while (programCounter < instructionData.size()) {
-		unsigned int instruction = instructionData[programCounter];
+		Instruction& instruction = instructionData[programCounter];
 		programCounter++;
 		numExecuted++;
 
