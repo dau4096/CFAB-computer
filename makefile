@@ -1,19 +1,19 @@
 CC = g++
-CFLAGS = -std=c++23 -O2 -ffast-math
+CFLAGS = -std=c++23 -O3 -march=native -ffast-math
 
 LIBS = -lm -ldl -pthread
 
 SOURCES = main.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
-all: app
+all: prgm
 
-app: $(OBJECTS)
-	$(CC) $(OBJECTS) $(LIBS) -o app
+prgm: $(OBJECTS)
+	$(CC) $(OBJECTS) $(LIBS) -o prgm
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS) app
+	rm -f $(OBJECTS) prgm
 

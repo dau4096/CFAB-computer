@@ -467,9 +467,9 @@ const std::vector<std::function<void()>> tests = {
 void doTests() {
 	//Tests specific cases using assertOrThrow.
 
+	std::cout << std::endl;
 	//Main tests
 	for (std::function<void()> test : tests) {
-		std::cout << std::endl;
 		std::fill(registers.begin(), registers.end(), static_cast<int8_t>(0)); //Clear all registers.
 		programCounter = 0u;
 		run = true;
@@ -478,11 +478,9 @@ void doTests() {
 			test();
 			std::cout << "\033[1;32m[TEST PASSED]\033[0;m" << std::endl;
 		} catch (const std::exception& e) {
-			std::cerr << "\033[1;31m[TEST FAILED]\033[0;m : \033[1;33m" << e.what() << "\033[0;m" << std::endl;
+			std::cerr << std::endl << "\033[1;31m[TEST FAILED]\033[0;m : \033[1;33m" << e.what() << "\033[0;m" << std::endl << std::endl;
 		}
 	}
-	std::cout << std::endl;
-
 }
 
 }

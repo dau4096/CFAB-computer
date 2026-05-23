@@ -303,12 +303,12 @@ Ia | Ib | F B | I N S T R |
 		}
 
 		case SHF: { //Bitshift A by B.
-			bool LSH = accessBit(flagBits, 0u);
-			if ((*Bptr) < 0) {LSH = !LSH;};
-			if (LSH){
-				(*result) = (*Aptr) << (*Bptr);
-			} else {
+			bool RSH = accessBit(flagBits, 0u);
+			if ((*Bptr) < 0) {RSH = !RSH;};
+			if (RSH){
 				(*result) = (*Aptr) >> (*Bptr);
+			} else {
+				(*result) = (*Aptr) << (*Bptr);
 			}
 			returnsValue = true;
 			break;			

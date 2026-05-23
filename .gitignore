@@ -37,3 +37,4 @@ data/*.dat
 notes.md
 stb_image*.h
 cxxopts.hpp
+gmon.out
