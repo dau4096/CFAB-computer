@@ -10,8 +10,8 @@ using namespace std;
 inline uint16_t programCounter;
 inline size_t numExecuted;
 inline uint16_t inputBits, outputBits; //Used for user I/O.
-inline std::array<int8_t, REG_COUNT> registers; //For short-term values.
-inline std::array<int8_t, RAM_COUNT> randomAccessMemory; //Acts like a disk of sorts. RAM in name solely.
+inline int8_t registers[REG_COUNT]; //For short-term values.
+inline int8_t randomAccessMemory[RAM_COUNT]; //Acts like a disk of sorts. RAM in name solely.
 inline std::vector<std::pair<uint16_t, uint16_t>> readOnlyMemoryIndices; //Start/End indices for each ROM segment.
 inline std::vector<int8_t> readOnlyMemory; //Taken from the end of the file.
 inline glm::ivec2 consoleResolution;
@@ -33,6 +33,40 @@ inline MetaData metaData; //Metadata about this loaded file.
 inline bool run;
 inline bool verbose, checkSpeed = false; //CLI Arg-Parameters
 
+
+
+struct Instruction {
+	unsigned int raw;
+
+	uint8_t opcode;
+	uint8_t flags;
+
+	bool Aimmediate;
+	int8_t A;
+	int8_t* Aptr;
+
+	bool Bimmediate;
+	int8_t B;
+	int8_t* Bptr;
+
+	Instruction()
+		: raw(0x000000u), opcode(NOP), flags(0x00u),
+		  Aimmediate(true), A(0), Aptr(nullptr),
+		  Bimmediate(true), B(0), Bptr(nullptr) {}
+
+	Instruction(unsigned int instr)
+		 : raw(instr), opcode((instr >> 16u) & BITS_4), flags((instr >> 20u) & BITS_2),
+		   Aimmediate(static_cast<bool>((instr >> 23u) & BITS_1)),
+		   Bimmediate(static_cast<bool>((instr >> 22u) & BITS_1)) {
+		   	uint8_t OPCa = (instr >> 8u) & BITS_8;
+		   	Aptr = (Aimmediate) ? nullptr : registers + (OPCa & (REG_COUNT - 1u));
+		   	A = (Aimmediate) ? static_cast<int8_t>(OPCa) : *Aptr;
+
+		   	uint8_t OPCb = instr & BITS_8;
+		   	Bptr = (Bimmediate) ? nullptr : registers + (OPCb & (REG_COUNT - 1u));
+		   	B = (Bimmediate) ? static_cast<int8_t>(OPCb) : *Bptr;
+		}
+};
 
 
 

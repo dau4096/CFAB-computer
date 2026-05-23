@@ -11,10 +11,10 @@ using namespace std;
 
 void debug() {
 	std::cout << "\033[1;30m-DEBUG-\033[0;m" << std::endl;
-	std::vector<unsigned int> debugInstructions = {
-		0x410001u, //SET r0 to #1
-		0x410102u, //SET r1 to #2
-		0x030001u, //ADD r0 to r1
+	std::vector<Instruction> debugInstructions = {
+		Instruction(0x410001u), //SET r0 to #1
+		Instruction(0x410102u), //SET r1 to #2
+		Instruction(0x030001u), //ADD r0 to r1
 	};
 	CFAB::runInstructionSet(debugInstructions);	
 }
@@ -57,7 +57,7 @@ void handleArguments(int argc, char* argv[]) {
     	enablePeek = true;
     }
     if (result.count("test")) {
-		std::cout << "\033[1;30m-TESTS-\033[0;m" << std::endl;
+		std::cout << "\n\033[1;30m-TESTS-\033[0;m" << std::endl;
 		tests::doTests();
         runNormal = false;
     }
@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
 	if (runNormal) {
 
 		std::cout << "\033[1;30m-NORMAL-\033[0;m" << std::endl;
-		std::vector<unsigned int> instructionData;
+		std::vector<Instruction> instructionData;
 		if (!loader::loadCFABFile(filePath, &instructionData)) {
 			std::cerr << "\033[1;31mFailed to load instructions from: " << FILE_PATH << "\033[0;m" << std::endl;
 			return -1;
