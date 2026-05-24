@@ -4,7 +4,7 @@ from fabsrc.shared import FabricationError;
 
 
 global MACROS;
-MACROS:dict[str, shared.Macro] = {}; #Maps macro name to 
+MACROS:dict[str, shared.Macro] = {}; #Maps macro name to contents.
 
 
 def replaceMacros(lines:list[str], depth:int=0, activeMacros:set[str]=None, previousMacro:str|None=None) -> list[str]:

@@ -11,7 +11,7 @@ inline uint16_t programCounter;
 inline size_t numExecuted;
 inline uint16_t inputBits, outputBits; //Used for user I/O.
 inline int8_t registers[REG_COUNT]; //For short-term values.
-inline int8_t randomAccessMemory[RAM_COUNT]; //Acts like a disk of sorts. RAM in name solely.
+inline uint8_t randomAccessMemory[RAM_COUNT]; //Acts like a disk of sorts. RAM in name solely.
 inline std::vector<std::pair<uint16_t, uint16_t>> readOnlyMemoryIndices; //Start/End indices for each ROM segment.
 inline std::vector<int8_t> readOnlyMemory; //Taken from the end of the file.
 inline glm::ivec2 consoleResolution;

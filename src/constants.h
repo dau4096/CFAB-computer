@@ -74,7 +74,7 @@ using namespace std;
 #define SCREEN_WIDTH 32u
 #define SCREEN_HEIGHT 16u
 #define SCREEN_ELEMENT_SIZE (SCREEN_WIDTH*SCREEN_HEIGHT)
-#define SCREEN_START_INDEX (4096u-SCREEN_ELEMENT_SIZE) /* 0xE00, 512 values at the end of the RAM. */
+#define SCREEN_START_INDEX (RAM_COUNT-SCREEN_ELEMENT_SIZE) /* 0xE00, 512 values at the end of the RAM. */
 enum GraphicsMode {
 	GM_NONE,
 	GM_TEXT,
@@ -82,7 +82,7 @@ enum GraphicsMode {
 	GM_RGBc
 };
 //When defined, will make the screen use double spaces rather than ½ square characters.
-#define SCREEN_DOUBLE_SCALE
+//#define SCREEN_DOUBLE_SCALE
 //////// MEMORY ////////
 
 

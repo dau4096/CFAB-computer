@@ -1,0 +1,16 @@
+/* testloop-new.cfab */
+
+$iter = #0; //Assign new variable $iter with value #0
+$numberOfIterations = #127; //Number of times to loop.
+
+PRINT "Looping ";
+COUT $numberOfIterations;
+PRINT " times...";
+
+:loopMarker
+
+	$iter ++; //Increment
+	COUT $iter \n
+
+if ($iter < $numberOfIterations) then-goto :loopMarker
+PRINT "Loop Complete."

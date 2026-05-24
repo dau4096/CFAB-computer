@@ -58,20 +58,23 @@ inline void appendNumber(std::string &s, uint8_t n) {
 }
 
 
-void convertRGB332toXTerm(std::vector<int8_t>* RAMdata, std::vector<uint8_t>* xTermData) {
+void convertRGB332toXTerm(std::vector<uint8_t>* RAMdata, std::vector<uint8_t>* xTermData) {
 	//Convert from 8-bit RRRGGGBB to 256 colour xTerms
 	for (unsigned int y=0u; y<SCREEN_HEIGHT; y++) {
 		for (unsigned int x=0u; x<SCREEN_WIDTH; x++) {
 			unsigned int index = (y*SCREEN_WIDTH)+x;
-			uint8_t RAMvalue = (uint8_t)(RAMdata->at(index));
+			uint8_t RAMvalue = RAMdata->at(index);
 
 			//Seperate into R, G and B.
 			//All occupy the first n bits.
-			uint8_t R = (RAMvalue << 0u) & 0xE0u; //First 3 bits
-			uint8_t G = (RAMvalue << 3u) & 0xE0u; //Middle 3
-			uint8_t B = (RAMvalue << 5u) & 0xC0u; //2 final bits
+			uint8_t R3 = (RAMvalue >> 5u) & 0x07u; //First 3 bits
+			uint8_t G3 = (RAMvalue >> 2u) & 0x07u; //Middle 3
+			uint8_t B2 = (RAMvalue >> 0u) & 0x03u; //2 final bits
 
-			std::cout << R << " " << G << " " << B << std::endl;
+			uint8_t R = (R3 * 255) / 7;
+			uint8_t G = (G3 * 255) / 7;
+			uint8_t B = (B2 * 255) / 3;
+
 			uint8_t xTerm = rgbToXterm256(R, G, B); //Convert
 			xTermData->at(index) = xTerm;
 		}
@@ -110,24 +113,24 @@ void drawScreenColours(std::vector<uint8_t>& xTermData) {
 			uint8_t low = xTermData.at(lowPixel);
 
 			//Only cout SGR if colour changed
-			if (top != lastBG) { //Background, upper PX.
-				term256 += "\x1b[48;5;";
+			if (top != lastFG) { //Foreground, upper PX.
+				term256 += "\x1b[38;5;";
 				appendNumber(term256, top);
 				term256 += "m";
-				lastBG = top;
+				lastFG = top;
 			}
-			if (low != lastFG) { //Foreground, lower PX.
-				term256 += "\x1b[38;5;";
+			if (low != lastBG) { //Background, lower PX.
+				term256 += "\x1b[48;5;";
 				appendNumber(term256, low);
 				term256 += "m";
-				lastFG = low;
+				lastBG = low;
 			}
 
 			term256 += "▀"; //UTF half-block char.
 		}
 
 		term256 += '\n';
-		lastFG = lastBG = -1; //Reset after each line
+		lastFG = -1; lastBG = -1; //Reset after each line
 	}
 
 	//Reset formatting, output.
@@ -178,8 +181,8 @@ void drawScreenText(std::vector<uint8_t>& UTFdata) {
 }
 
 
-void copyScreenDataIntoVector(std::vector<int8_t>* RAMdata) {
-	RAMdata->reserve(SCREEN_ELEMENT_SIZE);
+void copyScreenDataIntoVector(std::vector<uint8_t>* RAMdata) {
+	RAMdata->resize(SCREEN_ELEMENT_SIZE);
 	std::copy_n(
 		randomAccessMemory + SCREEN_START_INDEX,
 		SCREEN_ELEMENT_SIZE, RAMdata->begin() //Copy values from RAM into the RAMdata vector.
@@ -200,18 +203,18 @@ void drawCurrentScreen() {
 
 	consoleResolution = utils::getConsoleResolution();
 
-	std::vector<int8_t> RAMdata(SCREEN_ELEMENT_SIZE);
+	std::vector<uint8_t> RAMdata(SCREEN_ELEMENT_SIZE);
 	ANSI256::copyScreenDataIntoVector(&RAMdata);
 
 
 	switch (graphicsMode) {
 		case GM_TEXT: { //Use RAM values as unicode symbols.
 			std::cout << "TEXT" << std::endl;
-			ANSI256::drawScreenText(reinterpret_cast<std::vector<uint8_t>&>(RAMdata)); break;
+			ANSI256::drawScreenText(RAMdata); break;
 		}
 		case GM_256c: { //Directly use values from RAM as colours to be drawn.
 			std::cout << "256c" << std::endl;
-			ANSI256::drawScreenColours(reinterpret_cast<std::vector<uint8_t>&>(RAMdata)); break;
+			ANSI256::drawScreenColours(RAMdata); break;
 		}
 		case GM_RGBc: { //Convert values from RAM into RGB Xterms.
 			std::cout << "RGBc" << std::endl;
@@ -225,12 +228,6 @@ void drawCurrentScreen() {
 		default: {break;}
 	}
 
-	//std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";       //0101 1111
-	//std::cout << std::to_string(randomAccessMemory[0xE01]) << " ";       //1001 1100
-	//std::cout << std::to_string(randomAccessMemory[0xE02]) << std::endl; //1000 0011
-
-	//std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";
-	//std::cout << std::to_string(randomAccessMemory[0xE00]) << std::endl;
 }
 
 }

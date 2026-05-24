@@ -66,7 +66,6 @@ def OPC_set(ln:shared.Data) -> list[str]:
 		];
 	else:
 		ln.B = shared.toBin(convertValues(ln.preB, convertMarkers=SHOULD_ADD_TO_ROM)[0]); #Convert B only NOW.
-		print(ln.immediates, ln.A, ln.B)
 		return [f"{ln.immediates}00{getOperatorBinary('set')}{ln.A}{ln.B}",];
 
 def OPC_branch(ln:shared.Data) -> list[str]:
@@ -209,10 +208,12 @@ INFIX_OPERATORS_MAP:dict[str, str] = {
 	"/":  "div",
 	"%":  "mod",
 	"!":  "not",  #Logical
-	"&":  "Band", #...
+	"&&": "and",  #...
+	"||": "or",   #Logical
+	"&":  "Band", #Bitwise
 	"|":  "Bor",  #...
 	"^":  "xor",  #...
-	"!^": "xnor", #Logical
+	"!^": "xnor", #Bitwise
 	">":  "grt",
 	"<":  "lss",
 	">=": "gte",
@@ -436,7 +437,6 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 			convertedValues[-1][0] = str(convertedValues[-1][0]);
 		else:
 			convertedValues.append((parsedLine.operands[1], True));
-		print(parsedLine, convertedValues)
 	elif (operation.type == shared.OperationType.ONLY_B_OPRNDS): #Do not convert A.
 		convertedValues = [(parsedLine.operands[0], True),];
 		convertedValues.extend([convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands[1:]]);
@@ -454,7 +454,6 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 	parsedLine.src = line;
 
 	ln:shared.Data = shared.Data(parsedLine); #Dataset to contain all of the line values, to be passed into the mapping's func.
-	#print(parsedLine)
 	instructionList:list[str] = operation(ln);
 
 	if (makeHex):

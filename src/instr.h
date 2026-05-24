@@ -17,8 +17,8 @@ Ia/Ib --> Immediate operand A/B. 0: register index. 1: Immediate value.
 INSTR --> Instruction opcode (see below table)
 
 Bit layout;
-Ia | Ib | F B | I N S T R |
- 1 |  1 | 1 1 |  1 1 1 1  |
+Ia | Ib | F B | O P C O D E |
+ b |  b | b b |   b b b b   |
 
  MNE | BITS | HEX | DESCRIPTION
 -----+------+-----+-------------
@@ -47,6 +47,7 @@ namespace CFAB {
 
 
 
+#define B16(instr) ((static_cast<uint16_t>(instr.A) << 8) | static_cast<uint16_t>(instr.B))
 
 
 void displayInstruction(const Instruction& instr) {
@@ -118,6 +119,8 @@ void runInstructionSet(std::vector<Instruction>& instructionData, Instruction** 
 		instr = *(instrPTR++); \
 		numExecuted++; \
 		displayInstruction(instr); \
+		if (!instr.Aimmediate) {instr.A = *instr.Aptr;} \
+		if (!instr.Bimmediate) {instr.B = *instr.Bptr;} \
 		goto **(dispatchTable + instr.opcode); \
 	} while(0)
 
@@ -170,7 +173,7 @@ MOV_LABEL: { //Move register contents
 ADD_LABEL: { //Add 2 values	
 	int8_t* result = &registers[REG_RESULT];
 	if (instr.flags & 0b01) {
-		(*result) = instr.A | instr.B;
+		(*result) = static_cast<int8_t>(static_cast<uint8_t>(instr.A) | static_cast<uint8_t>(instr.B));
 	} else {
 		(*result) = instr.A + instr.B;
 	}
@@ -195,7 +198,7 @@ SUB_LABEL: { //Subtract 2 values
 MUL_LABEL: { //Multiply 2 values	
 	int8_t* result = &registers[REG_RESULT];
 	if (instr.flags & 0b01) {
-		(*result) = instr.A & instr.B;
+		(*result) = static_cast<int8_t>(static_cast<uint8_t>(instr.A) & static_cast<uint8_t>(instr.B));
 	} else {
 		(*result) = instr.A * instr.B;
 	}
@@ -306,7 +309,7 @@ BRN_LABEL: { //Branch conditional/unconditional.
 		((registers[REG_RESULT] != 0) && (!BRNif0)) || //BRN-If-1
 		(!(registers[REG_RESULT] != 0) && (BRNif0))    //BRN-If-0.
 	) {
-		instrPTR = instructionData.data() + ((instr.A << 8) | (instr.B));
+		instrPTR = instructionData.data() + B16(instr);
 	}
 
 	DISPATCH();
@@ -383,9 +386,9 @@ SHF_LABEL: { //Bitshift A by B.
 	if (instr.B < 0) {RSH = !RSH; /* Negative RSH means LSH, and vice-versa. */};
 
 	if (RSH) {
-		(*result) = instr.A >> instr.B;
+		(*result) = static_cast<int8_t>(static_cast<uint8_t>(instr.A) >> instr.B);
 	} else {
-		(*result) = instr.A << instr.B;
+		(*result) = static_cast<int8_t>(static_cast<uint8_t>(instr.A) << instr.B);
 	}
 
 	DISPATCH();	
@@ -407,14 +410,14 @@ EXT_LABEL: { //Extra lesser-used commands.
 		
 		case 0b10: { //RAMwrite
 			//Writes value in result register to RAM address (A<<8)|B
-			uint16_t RAMaddr = ((instr.A << 8) | instr.B) & BITS_RAM;
-			randomAccessMemory[RAMaddr] = registers[REG_RESULT];
+			uint16_t RAMaddr = B16(instr) & BITS_RAM;
+			randomAccessMemory[RAMaddr] = static_cast<uint8_t>(registers[REG_RESULT]);
 		}
 
 		case 0b11: { //RAMread
 			//Reads value from RAM address (A<<8)|B to result register
-			uint16_t RAMaddr = ((instr.A << 8) | instr.B) & BITS_RAM;
-			registers[REG_RESULT] = randomAccessMemory[RAMaddr];
+			uint16_t RAMaddr = B16(instr) & BITS_RAM;
+			registers[REG_RESULT] = static_cast<int8_t>(randomAccessMemory[RAMaddr]);
 		}
 	}
 
@@ -432,7 +435,7 @@ SLP_LABEL: { //Sleep until event, or for specified time.
 		}
 
 		case 0b01: { //Wait specified number of ms
-			unsigned int sleepMS = (instr.A << 8) | instr.B;
+			unsigned int sleepMS = B16(instr);
 			std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
 		}
 
@@ -449,7 +452,7 @@ SLP_LABEL: { //Sleep until event, or for specified time.
 
 
 MEM_LABEL: { //Bulk memory management.
-	uint16_t RAMaddr = ((instr.A << 8) | instr.B) & BITS_RAM;
+	uint16_t RAMaddr = B16(instr) & BITS_RAM;
 	int8_t* result = &registers[REG_RESULT];
 
 	switch (instr.flags) {

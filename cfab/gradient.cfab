@@ -1,0 +1,72 @@
+/* gradient.cfab */
+
+//MODE RGBc;
+
+
+define %setPixel $X $Y $V as
+	$yMod = ($Y % #8);
+	$yDiv = ($Y / #8);
+	$xOffset = ($yMod * $SCREEN_WIDTH);
+
+	$hi = (#xE + $yDiv);
+	$lo = ($X + $xOffset);
+
+	COUT $X
+	PRINT " "
+	COUT $Y
+	PRINT " : "
+	COUT $hi
+	PRINT " "
+	COUT $lo
+	PRINT "\n"
+
+	rOP = $V; //Write value into screen area of RAM.
+	RAMwrite $hi $lo;
+end
+
+define %toRGB332 $R $G $B $result as
+	//Takes range 0x00 to 0xFF for each channel.
+	$result = ($R & #xE0); //First 3 bits are red.
+
+	//Next 3 bits are green.
+	$G >> #3;
+	rOP & #x1C;
+	$result = ($result | rOP);
+
+	//Final 2 are blue.
+	$B >> #6;
+	rOP & #x03;
+	$result = ($result | rOP);
+end
+
+
+
+
+$colour = #0;//#b11100011;
+//%toRGB332 #xFF #x00 #xFF $colour; //Magenta
+/*rOP = $colour;
+RAMwrite #xE #x00
+UPDATE;*/
+
+//DEBUG
+COUT $SCREEN_WIDTH
+PRINT " "
+COUT $SCREEN_HEIGHT \n
+PRINT "\n"
+
+$Y = #0;
+:loopY
+	$X = #0;
+	:loopX
+
+		%setPixel $X $Y $colour;
+		//COUT $colour \n
+		$colour ++;
+
+		$X ++;
+	if ($X < $SCREEN_WIDTH) then-goto :loopX;
+	$Y ++;
+if ($Y < $SCREEN_HEIGHT) then-goto :loopY;
+
+
+UPDATE;
