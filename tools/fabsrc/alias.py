@@ -45,6 +45,8 @@ def replaceAliases(lines:list[str]) -> list[str]:
 
 
 	availableRegisters:list[str] = [f"r{x}" for x in range(shared.NUM_REGISTERS)]; #Does not include rOP, rX, rY, rZ and rW (r59-63) as they should NEVER be overwritten.
+	availableRegisters.reverse();
+
 	builtinRegisterAliases:dict[str,str] = {};
 	for (k,v) in shared.BUILTIN_REGISTERS.items():
 		rIndex:str = f"r{v}";

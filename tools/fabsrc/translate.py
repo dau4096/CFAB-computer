@@ -66,6 +66,7 @@ def OPC_set(ln:shared.Data) -> list[str]:
 		];
 	else:
 		ln.B = shared.toBin(convertValues(ln.preB, convertMarkers=SHOULD_ADD_TO_ROM)[0]); #Convert B only NOW.
+		print(ln.immediates, ln.A, ln.B)
 		return [f"{ln.immediates}00{getOperatorBinary('set')}{ln.A}{ln.B}",];
 
 def OPC_branch(ln:shared.Data) -> list[str]:
@@ -273,10 +274,10 @@ OPERATOR_MAPPING:dict[str, shared.Operation] = {
 
 
 	#Complex operations;
-	"set":      shared.Operation(type=shared.OperationType.ONLY_A_OPRNDS, func=OPC_set),    #Assign memory a value, or the result of a calculation.
-	"brn":      shared.Operation(type=shared.OperationType.COMPLEX,       func=OPC_branch), #Conditional branching
-	"jmp":      shared.Operation(type=shared.OperationType.COMPLEX,       func=OPC_jump),   #Unconditional branching
-	"sleep":    shared.Operation(type=shared.OperationType.COMPLEX,       func=OPC_sleep),  #Sleep for specified number of milliseconds
+	"set":      shared.Operation(type=shared.OperationType.B_AMBIGUOUS, func=OPC_set),    #Assign memory a value, or the result of a calculation.
+	"brn":      shared.Operation(type=shared.OperationType.COMPLEX,     func=OPC_branch), #Conditional branching
+	"jmp":      shared.Operation(type=shared.OperationType.COMPLEX,     func=OPC_jump),   #Unconditional branching
+	"sleep":    shared.Operation(type=shared.OperationType.COMPLEX,     func=OPC_sleep),  #Sleep for specified number of milliseconds
 
 
 	#Complex abstractions of operations;
@@ -392,6 +393,7 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 	SHOULD_ADD_TO_ROM=convertMarkers;
 
 	if (len(line) == 0): return [];
+	#print(line)
 
 	#Seperate into lineSplit.
 	lineSplit:list[str] = seperateIntoSections(line);
@@ -425,12 +427,16 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 
 	
 	convertedValues:list[int] = [];
-	if (operation.type == shared.OperationType.ONLY_A_OPRNDS): #B operand is NOT to be converted.
+	if (operation.type == shared.OperationType.B_AMBIGUOUS): #B operand is NOT to be converted.
 		convertedValues = [
-			convertValues(parsedLine.operands[0], convertMarkers=convertMarkers), #Convert
-			(parsedLine.operands[1], True) #No convert
+			convertValues(parsedLine.operands[0], convertMarkers=convertMarkers) #Convert A
 		];
-		convertedValues.extend([convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands[2:]]);
+		if (regex.match("(?i)^r[0-9]+$", parsedLine.operands[1]) is not None):
+			convertedValues.append(list(convertValues(parsedLine.operands[1], convertMarkers=convertMarkers)));
+			convertedValues[-1][0] = str(convertedValues[-1][0]);
+		else:
+			convertedValues.append((parsedLine.operands[1], True));
+		print(parsedLine, convertedValues)
 	elif (operation.type == shared.OperationType.ONLY_B_OPRNDS): #Do not convert A.
 		convertedValues = [(parsedLine.operands[0], True),];
 		convertedValues.extend([convertValues(x, convertMarkers=convertMarkers) for x in parsedLine.operands[1:]]);
@@ -448,6 +454,7 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 	parsedLine.src = line;
 
 	ln:shared.Data = shared.Data(parsedLine); #Dataset to contain all of the line values, to be passed into the mapping's func.
+	#print(parsedLine)
 	instructionList:list[str] = operation(ln);
 
 	if (makeHex):

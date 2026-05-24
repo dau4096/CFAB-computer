@@ -225,9 +225,9 @@ void drawCurrentScreen() {
 		default: {break;}
 	}
 
-	std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";       //0101 1111
-	std::cout << std::to_string(randomAccessMemory[0xE01]) << " ";       //1001 1100
-	std::cout << std::to_string(randomAccessMemory[0xE02]) << std::endl; //1000 0011
+	//std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";       //0101 1111
+	//std::cout << std::to_string(randomAccessMemory[0xE01]) << " ";       //1001 1100
+	//std::cout << std::to_string(randomAccessMemory[0xE02]) << std::endl; //1000 0011
 
 	//std::cout << std::to_string(randomAccessMemory[0xE00]) << " ";
 	//std::cout << std::to_string(randomAccessMemory[0xE00]) << std::endl;

@@ -43,6 +43,7 @@ class OperationType(Enum): #Used to distinguish types of instruction.
 	COMPLEX       = 4;
 	ONLY_A_OPRNDS = 5;
 	ONLY_B_OPRNDS = 6;
+	B_AMBIGUOUS   = 7;
 
 
 class FabricationError(Exception): #Fabrication error exception.

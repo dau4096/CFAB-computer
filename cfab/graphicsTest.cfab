@@ -34,7 +34,7 @@ define %toRGB332 $R $G $B $result as
 end
 
 
-/*
+
 //INSTRs
 //Screen range is [0xE00 - 0xEFF] (inclusive) in RAM. Thus, if operand A is 0xE, then operand B must be on the screen.
 rOP = #b11100000;
@@ -54,7 +54,7 @@ RAMwrite #xE #x02;
 COUT #b11100011
 
 
-*/
+
 %toRGB332 #xFF #xFF #x00 $RGB332;
 COUT $RGB332 \n;
 %setPixel #8 #5 $RGB332;

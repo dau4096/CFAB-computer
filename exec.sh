@@ -10,4 +10,4 @@ else
 	exit -1
 fi
 
-./app $2 -f $1.dat
+./prgm.x86_64 $2 -f $1.dat
