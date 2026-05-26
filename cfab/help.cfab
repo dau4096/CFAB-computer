@@ -7,5 +7,4 @@ PRINT " - [verbose/v] Outputs every instruction processed (Operands, name, etc.)
 PRINT " - [test/t]    Runs built-in unit testing.\n"
 PRINT " - [rate/r]    Gives total number of instructions executed, time taken and frequency.\n"
 PRINT " - [peek/p]    Peek memory after execution. (e.g. [r 0] or [ram 24])\n"
-PRINT " - [debug/d]   Runs hardcoded debug function [DEV]\n"
 PRINT " - [colour/c]  Sets the RAM-Graphics mode. Can be text, 256-colour or RGB. [NONE/TEXT/256/RGB]\n"

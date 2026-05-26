@@ -46,8 +46,11 @@ Ia | Ib | F B | O P C O D E |
 namespace CFAB {
 
 
-
-#define B16(instr) ((static_cast<uint16_t>(instr.A) << 8) | static_cast<uint16_t>(instr.B))
+#define toUINT16(X) static_cast<uint16_t>(static_cast<uint8_t>(X))
+#define B16(instr) ( \
+	(toUINT16(instr.A) << 8) | \
+	toUINT16(instr.B) \
+)
 
 
 void displayInstruction(const Instruction& instr) {
@@ -218,6 +221,8 @@ DIV_LABEL: { //Divide 2 values
 		} else {
 			(*result) = instr.A / instr.B;
 		}
+	} else {
+		registers[REG_RESULT] = 0;
 	}
 
 	DISPATCH();
@@ -411,6 +416,7 @@ EXT_LABEL: { //Extra lesser-used commands.
 		case 0b10: { //RAMwrite
 			//Writes value in result register to RAM address (A<<8)|B
 			uint16_t RAMaddr = B16(instr) & BITS_RAM;
+			std::cout << 0xE00 << " " << std::to_string(RAMaddr) << " " << 0xFFF << std::endl;
 			randomAccessMemory[RAMaddr] = static_cast<uint8_t>(registers[REG_RESULT]);
 		}
 

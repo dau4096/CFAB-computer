@@ -9,17 +9,6 @@
 using namespace std;
 
 
-void debug() {
-	std::cout << "\033[1;30m-DEBUG-\033[0;m" << std::endl;
-	std::vector<Instruction> debugInstructions = {
-		Instruction(0x410001u), //SET r0 to #1
-		Instruction(0x410102u), //SET r1 to #2
-		Instruction(0x030001u), //ADD r0 to r1
-	};
-	CFAB::runInstructionSet(debugInstructions);	
-}
-
-
 
 
 
@@ -43,7 +32,6 @@ void handleArguments(int argc, char* argv[]) {
         ("v,verbose", "Show detailed output from commands.")
         ("r,rate", "Show elapsed time and frequency.")
         ("t,test", "Run automated tests.")
-        ("d,debug", "Minimal debugging setup.")
         ("c,colour", "RAM-Screen output mode.", cxxopts::value<std::string>());
 
     auto result = options.parse(argc, argv);
@@ -59,10 +47,6 @@ void handleArguments(int argc, char* argv[]) {
     if (result.count("test")) {
 		std::cout << "\n\033[1;30m-TESTS-\033[0;m" << std::endl;
 		tests::doTests();
-        runNormal = false;
-    }
-    if (result.count("debug")) {
-        debug();
         runNormal = false;
     }
     if (result.count("rate")) {
@@ -100,7 +84,11 @@ int main(int argc, char* argv[]) {
 
 
 		//Execute.
-		CFAB::runInstructionSet(instructionData);
+		try {
+			CFAB::runInstructionSet(instructionData);
+		} catch (const std::exception& e) {
+			std::cerr << "\033[32G\033[1;31m[ERROR]\033[0;m : \033[1;33m" << e.what() << "\033[0;m" << std::endl;
+		}
 	}
 
 	std::cout << std::endl << "\033[1;33m[END]\033[0;m" << std::endl;
@@ -117,6 +105,7 @@ int main(int argc, char* argv[]) {
 			} else if (type == "ram") {
 				std::cout << "RAM-" << index << ": " << std::to_string(randomAccessMemory[index]) << std::endl;
 			}
+			std::cout << "> ";
 			std::cin >> type >> indexStr;
 		}
 	}
