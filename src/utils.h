@@ -32,6 +32,7 @@ inline MetaData metaData; //Metadata about this loaded file.
 
 inline bool run;
 inline bool verbose, checkSpeed = false; //CLI Arg-Parameters
+inline bool suppressDebug = false;
 
 
 

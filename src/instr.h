@@ -47,14 +47,16 @@ namespace CFAB {
 
 
 #define toUINT16(X) static_cast<uint16_t>(static_cast<uint8_t>(X))
-#define B16(instr) ( \
-	(toUINT16(instr.A) << 8) | \
-	toUINT16(instr.B) \
+#define B16instr(instr) ( \
+	(toUINT16(instr.A) << 8) | toUINT16(instr.B) \
+)
+#define B16(A,B) ( \
+	(toUINT16(A) << 8) | toUINT16(B) \
 )
 
 
 void displayInstruction(const Instruction& instr) {
-	if (/*!silenceDebug && */verbose) {
+	if (!suppressDebug && verbose) {
 		const std::array<std::string, 16> opcodeMap = {
 			"NOP", "SET", "MOV", "ADD",
 			"SUB", "MUL", "DIV", "NOT",
@@ -314,7 +316,7 @@ BRN_LABEL: { //Branch conditional/unconditional.
 		((registers[REG_RESULT] != 0) && (!BRNif0)) || //BRN-If-1
 		(!(registers[REG_RESULT] != 0) && (BRNif0))    //BRN-If-0.
 	) {
-		instrPTR = instructionData.data() + B16(instr);
+		instrPTR = instructionData.data() + B16instr(instr);
 	}
 
 	DISPATCH();
@@ -338,7 +340,7 @@ I_O_LABEL: { //Get input/Set output
 		case 0b01: { //Output
 			//Write values of A and B to the output bits.
 			//Not a good plan to cast twice, but needs to change negative values to their 8-bit complement representation, then increase to 16.
-			outputBits = (static_cast<uint8_t>(instr.A) << 8) | static_cast<uint8_t>(instr.B);
+			outputBits = B16instr(instr);
 			break;
 		}
 
@@ -415,14 +417,13 @@ EXT_LABEL: { //Extra lesser-used commands.
 		
 		case 0b10: { //RAMwrite
 			//Writes value in result register to RAM address (A<<8)|B
-			uint16_t RAMaddr = B16(instr) & BITS_RAM;
-			std::cout << 0xE00 << " " << std::to_string(RAMaddr) << " " << 0xFFF << std::endl;
+			uint16_t RAMaddr = B16instr(instr) & BITS_RAM;
 			randomAccessMemory[RAMaddr] = static_cast<uint8_t>(registers[REG_RESULT]);
 		}
 
 		case 0b11: { //RAMread
 			//Reads value from RAM address (A<<8)|B to result register
-			uint16_t RAMaddr = B16(instr) & BITS_RAM;
+			uint16_t RAMaddr = B16instr(instr) & BITS_RAM;
 			registers[REG_RESULT] = static_cast<int8_t>(randomAccessMemory[RAMaddr]);
 		}
 	}
@@ -441,7 +442,7 @@ SLP_LABEL: { //Sleep until event, or for specified time.
 		}
 
 		case 0b01: { //Wait specified number of ms
-			unsigned int sleepMS = B16(instr);
+			unsigned int sleepMS = B16instr(instr);
 			std::this_thread::sleep_for(std::chrono::milliseconds(sleepMS));
 		}
 
@@ -458,13 +459,13 @@ SLP_LABEL: { //Sleep until event, or for specified time.
 
 
 MEM_LABEL: { //Bulk memory management.
-	uint16_t RAMaddr = B16(instr) & BITS_RAM;
+	uint16_t RAMaddr = B16instr(instr) & BITS_RAM;
 	int8_t* result = &registers[REG_RESULT];
 
 	switch (instr.flags) {
 		case 0b00: { //Clear section of RAM.
 			int8_t clearValue = registers[REG_X];
-			uint16_t RAMend = ((registers[REG_Y] << 8) | registers[REG_Z]) & BITS_RAM;
+			uint16_t RAMend = B16(registers[REG_Y], registers[REG_Z]) & BITS_RAM;
 			//Start at RAMaddr, end at RAMend.
 			std::fill(
 				std::next(randomAccessMemory, RAMaddr),
@@ -476,13 +477,14 @@ MEM_LABEL: { //Bulk memory management.
 		}
 
 		case 0b01: { //Copy section of RAM.
-			uint16_t RAMend = ((registers[REG_X] << 8) | registers[REG_Y]) & BITS_RAM;
-			uint16_t RAMnew = ((registers[REG_Z] << 8) | registers[REG_W]) & BITS_RAM;
+			uint16_t RAMend = B16(registers[REG_X], registers[REG_Y]) & BITS_RAM;
+			uint16_t RAMnew = B16(registers[REG_Z], registers[REG_W]) & BITS_RAM;
 
 			uint16_t copySize = RAMend - RAMaddr;
 			uint16_t freeSpace = RAM_COUNT - RAMnew;
 			if (copySize > freeSpace) {
-				break; //Fail
+				(*result) = 0; //Faliure
+				break;
 			}
 
 			std::copy_n(
@@ -499,14 +501,17 @@ MEM_LABEL: { //Bulk memory management.
 			uint8_t ROMsegmentIndex = registers[REG_X];
 
 			if (ROMsegmentIndex >= readOnlyMemoryIndices.size()) {
-				break; //Fail
+				(*result) = 0; //Faliure
+				break;
 			}
 			std::pair<uint16_t, uint16_t> ROMindexPair = readOnlyMemoryIndices[ROMsegmentIndex];
 			uint16_t copySize = ROMindexPair.second - ROMindexPair.first;
 			uint16_t freeSpace = RAM_COUNT - RAMaddr;
 			if (copySize > freeSpace) {
-				break; //Fail
+				(*result) = 0; //Faliure
+				break;
 			}
+
 
 			std::copy_n(
 				std::next(readOnlyMemory.begin(), ROMindexPair.first),

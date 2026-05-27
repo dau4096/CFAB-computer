@@ -80,7 +80,7 @@ void testMOV() {
 }
 
 
-void testClear() {
+void testRegisterClear() {
 	//Clears all registers to 0.
 	std::cout << "CLEAR-registers ";
 	registers[1u] = 2; //SET r1 to 2
@@ -128,6 +128,117 @@ void testRAMread() {
 	assertOrThrow(
 		registers[REG_RESULT] == static_cast<int8_t>(randomAccessMemory[12u]),
 		"Value in RAM address 12 was not written to result register"
+	);
+}
+
+
+void testROMCopy() {
+	//Test copying from ROM into RAM
+	std::cout << "ROMcopy ";
+
+	readOnlyMemory = { //Add test data to the ROM
+		'C', 'F', 'A', 'B', 'R', 'O', 'M', 1u
+	};
+	readOnlyMemoryIndices.push_back({0u, 4u});
+	readOnlyMemoryIndices.push_back({4u, 7u});
+
+	testInstructions = {
+		//Load rom segment 0 into RAM starting at RAM[12]
+		Instruction(0x413C00), //rX = 0;
+		Instruction(0xEF000C), //LOAD #0 #12
+
+		//Load rom segment 1 into RAM starting at RAM[32]
+		Instruction(0x413C01), //rX = 1;
+		Instruction(0xEF0020), //LOAD #0 #32
+	};
+	CFAB::runInstructionSet(testInstructions);
+
+	bool ROM0success = true;
+	for (unsigned int idx=0u; idx<4; idx++) {
+		if (readOnlyMemory[idx] != randomAccessMemory[12u + idx]) {
+			ROM0success = false;
+			break;
+		}
+	}
+
+	bool ROM1success = true;
+	for (unsigned int idx=0u; idx<3; idx++) {
+		if (readOnlyMemory[4 + idx] != randomAccessMemory[32u + idx]) {
+			ROM1success = false;
+			break;
+		}
+	}
+
+
+	assertOrThrow(
+		ROM0success, "ROM segment 0 was not correctly copied into RAM[12:]"
+	);
+	assertOrThrow(
+		ROM1success, "ROM segment 1 was not correctly copied into RAM[32:]"
+	);
+}
+
+
+void testRAMManagement() {
+	//Test copying, clearing sections of RAM.
+	std::cout << "RAMcopy/RAMclear ";
+
+	const uint8_t testRAMdata[7] = {
+		0xFF, 0x3F, 0x20, 0x78, 0x38, 0x69, 0x67,
+	};
+
+	//Place it in 2 parts of RAM (one for moving, one for clearing.)
+	memcpy(
+		randomAccessMemory + 396u,
+		testRAMdata, 7 * sizeof(uint8_t)
+	);
+	memcpy(
+		randomAccessMemory + 2048u,
+		testRAMdata, 7 * sizeof(uint8_t)
+	);
+
+	testInstructions = {
+		Instruction(0x413C7F), //rX = #x7F (clear value)
+		Instruction(0x413D08), //rY = #x08 (End address hi-bits)
+		Instruction(0x413E07), //rZ = #x07 (End address lo-bits)
+		Instruction(0xCF0800), //RAMclear #x8 #x00
+
+		Instruction(0x413C01), //rX = #x01 (End address hi-bits)
+		Instruction(0x413D93), //rY = #x93 (End address lo-bits)
+		Instruction(0x413E01), //rZ = #x01 (Dest address hi-bits)
+		Instruction(0x413BA4), //rW = #xA4 (Dest address lo-bits)
+		Instruction(0xDF018C)  //RAMcopy #x01 #x8C
+	};
+	CFAB::runInstructionSet(testInstructions);
+
+	bool clearSuccess = true;
+	for (unsigned int idx=0u; idx<7u; idx++) {
+		if (randomAccessMemory[2048+idx] != 0x7Fu) { //Check cleared to fill value.
+			clearSuccess = false;
+			break;
+		}
+	}
+
+	bool copySrcSuccess = true, copyDestSuccess = true;
+	for (unsigned int idx=0u; idx<7u; idx++) {
+		const uint8_t& expected = testRAMdata[idx];
+		if (randomAccessMemory[396u+idx] != expected) {
+			copySrcSuccess = false;
+		} 
+		if (randomAccessMemory[420u+idx] != expected) {
+			copyDestSuccess = false;
+		}
+	}
+
+
+	assertOrThrow(
+		clearSuccess, "RAMclear did not fill RAM section correctly."
+	);
+	assertOrThrow(
+		copySrcSuccess, "RAMcopy illegally modified source data."
+	);
+	assertOrThrow(
+		copyDestSuccess, "RAMcopy did not fill destination with correct data."
 	);
 }
 
@@ -667,6 +778,59 @@ void testOverflows() {
 }
 
 
+void testPRINTandCOUTs() {
+	//Check that PRINT/COUT gives the correct response.
+	//https://stackoverflow.com/a/12061076 ← Read std::cout
+	std::cout << "PRINT/COUT ";
+
+	//Set up ROM for PRINT.
+	readOnlyMemory = {
+		'C', 'F', 'A', 'B', ' ', 'i', 's', ' ', 'n', 'e', 'a', 't', '!'
+	};
+	readOnlyMemoryIndices.push_back({0u, 13u});
+	testInstructions = {
+		Instruction(0x41002A), //r0 = #42
+		Instruction(0x2B0000), //COUT r0
+
+		Instruction(0xFB0000), //COUT \n
+
+		Instruction(0xBB0000), //PRINT "CFAB is neat!" (ROM0)
+	};
+	suppressDebug = true;
+
+	std::streambuf* cbuf = std::cout.rdbuf(); //Backup COUT.
+	std::stringstream capturedCOUT;
+	std::cout.rdbuf(capturedCOUT.rdbuf());
+
+	CFAB::runInstructionSet(testInstructions);
+
+	std::cout.rdbuf(cbuf); //Reset to usual.
+	std::string result = capturedCOUT.str(); //Fetch COUT'd text
+	//Expected raw: "42\nCFAB is neat!"
+
+	//Test if COUT contained correct data.
+	bool PRINTsuccess = true;
+	for (unsigned int idx=0u; idx<13u; idx++) {
+		if (result[3u+idx] != readOnlyMemory[idx]) {
+			PRINTsuccess = false;
+			break;
+		}
+	}
+
+	assertOrThrow(
+		(result[0u] == '4') && (result[1u] == '2'),
+		"Failed to display register value in console."
+	);
+	assertOrThrow(
+		result[2u] == '\n',
+		"Failed to emit newline character."
+	);
+	assertOrThrow(
+		PRINTsuccess,
+		"Failed to display ROM segment in console."
+	);
+}
+
 //////// Other ////////
 
 
@@ -677,8 +841,8 @@ void testOverflows() {
 
 const std::vector<std::function<void()>> tests = {
 	//Memory
-	testSETImmediate, testSETRegister, testMOV, testClear,
-	testRAMwrite, testRAMread,
+	testSETImmediate, testSETRegister, testMOV, testRegisterClear,
+	testRAMwrite, testRAMread, testROMCopy, testRAMManagement,
 
 	//Maths
 	testADD, testSUB, testMUL, testDIV,
@@ -690,7 +854,8 @@ const std::vector<std::function<void()>> tests = {
 	testComparisons, testSequenceLogic,
 
 	//Other
-	testBRN, testExit, testInput, testOutput, testOverflows
+	testBRN, testExit, testInput, testOutput,
+	testOverflows, testPRINTandCOUTs
 };
 
 
@@ -702,6 +867,8 @@ void doTests() {
 	for (std::function<void()> test : tests) {
 		std::fill(registers, registers + REG_COUNT, static_cast<int8_t>(0)); //Clear all registers.
 		std::fill(randomAccessMemory, randomAccessMemory + RAM_COUNT, static_cast<int8_t>(0)); //Clear all RAM.
+		readOnlyMemory.clear();
+		readOnlyMemoryIndices.clear();
 		programCounter = 0u;
 		run = true;
 
