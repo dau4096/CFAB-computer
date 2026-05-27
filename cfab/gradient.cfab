@@ -1,6 +1,6 @@
 /* gradient.cfab */
 
-MODE RGBc;
+MODE 256c;
 
 
 define %setPixel $X $Y $V as
@@ -42,11 +42,9 @@ end
 
 
 
-$colour = #b11100011;
+$colour = #0;
+//$colour = #b11100011;
 //%toRGB332 #xFF #x00 #xFF $colour; //Magenta
-/*rOP = $colour;
-RAMwrite #xE #x00
-UPDATE;*/
 
 //DEBUG
 COUT $SCREEN_WIDTH
@@ -61,7 +59,7 @@ $Y = #0;
 
 		%setPixel $X $Y $colour;
 		//COUT $colour \n
-		//$colour ++;
+		$colour ++;
 
 		$X ++;
 	if ($X < $SCREEN_WIDTH) then-goto :loopX;

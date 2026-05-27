@@ -101,9 +101,9 @@ int main(int argc, char* argv[]) {
 		while (1) {
 			int index = std::stoi(indexStr);
 			if (type == "r") {
-				std::cout << "r" << index << ": " << std::to_string(registers[index]) << std::endl;
+				std::cout << "r" << index << ": " << std::to_string(registers[index & BITS_REG]) << std::endl;
 			} else if (type == "ram") {
-				std::cout << "RAM-" << index << ": " << std::to_string(randomAccessMemory[index]) << std::endl;
+				std::cout << "RAM-" << index << ": " << std::to_string(randomAccessMemory[index & BITS_RAM]) << std::endl;
 			}
 			std::cout << "> ";
 			std::cin >> type >> indexStr;

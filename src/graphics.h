@@ -88,8 +88,8 @@ void convertRGB332toXTerm(std::vector<uint8_t>* RAMdata, std::vector<uint8_t>* x
 
 
 //SCREEN_DOUBLE_SCALE Changes the screen to draw 2 spaces rather than ½ square characters. Quadruples screen size.
-#ifndef SCREEN_DOUBLE_SCALE //NOT defined, small pixels.
 void drawScreenColours(std::vector<uint8_t>& xTermData) {
+#ifndef SCREEN_DOUBLE_SCALE //NOT defined, small pixels.
 	//Move cursor to top-left and disable wraparound.
 	std::string term256;
 	term256.reserve((SCREEN_ELEMENT_SIZE * 12u)); //Estimate.
@@ -137,10 +137,8 @@ void drawScreenColours(std::vector<uint8_t>& xTermData) {
 	term256 += "\x1b[?7h\x1b[0m";
 	fwrite(term256.data(), 1, term256.size(), stdout);
 	fflush(stdout);	
-}
 
 #else //IS defined, large pixels.
-void drawScreenColours(std::vector<uint8_t>& xTermData) {
 	//Move cursor to top-left and disable wraparound.
 	std::string term256;
 	term256.reserve((SCREEN_ELEMENT_SIZE * 12u)); //Estimate.
@@ -168,16 +166,32 @@ void drawScreenColours(std::vector<uint8_t>& xTermData) {
 	term256 += "\x1b[?7h\x1b[0m";
 	fwrite(term256.data(), 1, term256.size(), stdout);
 	fflush(stdout);	
-}
 #endif
+}
 
 
 
 
+void drawScreenText(std::vector<uint8_t>& charData) {
+	//Move cursor to top-left and disable wraparound.
+	std::string conOut;
+	conOut.reserve(SCREEN_ELEMENT_SIZE + 16 + SCREEN_HEIGHT);
+	conOut += "\x1b[H\x1b[2J\x1b[3J\x1b[?7l";
 
+	unsigned int consoleWidth = glm::min(SCREEN_WIDTH, static_cast<unsigned int>(consoleResolution.x));
+	for (unsigned int y=SCREEN_HEIGHT; y>0u; y--) {
+		for (unsigned int x=0u; x<consoleWidth; x++) {
+			unsigned int index = ((y-1u) * SCREEN_WIDTH) + x;
+			uint8_t character = charData.at(index);
+			if (!isprint(character)) {character = '?';}
+			conOut += character;
+		}
+		conOut += '\n';
+	}
 
-void drawScreenText(std::vector<uint8_t>& UTFdata) {
-	//TBA.
+	//Output.
+	fwrite(conOut.data(), 1, conOut.size(), stdout);
+	fflush(stdout);	
 }
 
 

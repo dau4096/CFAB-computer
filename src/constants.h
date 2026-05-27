@@ -60,6 +60,7 @@ using namespace std;
 //REGISTERS
 #define REG_COUNT 64u /* 2^6 */
 #define REG_RESULT 63u /* Last index, stores result of last instruction if it returned one. */
+#define BITS_REG 0x3F
 //Used when 16 bits of operand arent enough.
 #define REG_Z 62u
 #define REG_Y 61u
@@ -82,7 +83,7 @@ enum GraphicsMode {
 	GM_RGBc
 };
 //When defined, will make the screen use double spaces rather than ½ square characters.
-//#define SCREEN_DOUBLE_SCALE
+#define SCREEN_DOUBLE_SCALE
 //////// MEMORY ////////
 
 
