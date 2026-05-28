@@ -871,6 +871,8 @@ void doTests() {
 		readOnlyMemoryIndices.clear();
 		programCounter = 0u;
 		run = true;
+		suppressDebug = false;
+
 
 		try {
 			test();

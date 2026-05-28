@@ -1,0 +1,15 @@
+/* textGraphics.cfab */
+
+MODE TEXT;
+
+ROM0 "Testing!";
+ROM1 "Really long text how long can I make it before it overflows I wonder what that'll do that will be interesting to see what behaviour occurs in such a case :)"
+
+
+RAMclear $SCREEN_START $RAM_SIZE #x20
+
+LOAD #0 $SCREEN_START; //Write text to screen;
+
+LOAD #1 #xE40; //Write text to screen;
+
+UPDATE;

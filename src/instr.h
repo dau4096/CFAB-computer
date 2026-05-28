@@ -466,10 +466,12 @@ MEM_LABEL: { //Bulk memory management.
 		case 0b00: { //Clear section of RAM.
 			int8_t clearValue = registers[REG_X];
 			uint16_t RAMend = B16(registers[REG_Y], registers[REG_Z]) & BITS_RAM;
+
+			std::cout << std::to_string(RAMaddr) << " " << std::to_string(RAMend) << std::endl;
 			//Start at RAMaddr, end at RAMend.
 			std::fill(
-				std::next(randomAccessMemory, RAMaddr),
-				std::next(randomAccessMemory, RAMend),
+				randomAccessMemory + RAMaddr,
+				randomAccessMemory + RAMend + 1u,
 				clearValue
 			);
 			(*result) = 1; //Success

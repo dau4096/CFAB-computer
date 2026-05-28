@@ -18,7 +18,7 @@ release: $(OBJECTS)
 	$(CC) $(OBJECTS) $(LIBS) -o $(BINFILE)
 
 
-debug: CFLAGS = -std=c++23 -O0 -g3
+debug: CFLAGS = -std=c++23 -O0 -g3 -DTEST_SCREEN_MODES
 debug: $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) $(LIBS) -o $(BINFILE)
 

@@ -179,9 +179,9 @@ void drawScreenText(std::vector<uint8_t>& charData) {
 	conOut += "\x1b[H\x1b[2J\x1b[3J\x1b[?7l";
 
 	unsigned int consoleWidth = glm::min(SCREEN_WIDTH, static_cast<unsigned int>(consoleResolution.x));
-	for (unsigned int y=SCREEN_HEIGHT; y>0u; y--) {
+	for (unsigned int y=0u; y<SCREEN_HEIGHT; y++) {
 		for (unsigned int x=0u; x<consoleWidth; x++) {
-			unsigned int index = ((y-1u) * SCREEN_WIDTH) + x;
+			unsigned int index = (y * SCREEN_WIDTH) + x;
 			uint8_t character = charData.at(index);
 			if (!isprint(character)) {character = '?';}
 			conOut += character;

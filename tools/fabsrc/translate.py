@@ -39,7 +39,6 @@ def convertValues(V:str, convertMarkers:bool=True) -> tuple[int, bool]:
 		return (int(V.replace("r", "")), False);
 	elif V.startswith("#x"): #Immediate values (Hex)
 		vInt:int = int(V.replace("#x",""), 16);
-		if (vInt > 127): vInt -= 256;
 		return (vInt, True);
 	elif V.startswith("#b"): #Immediate values (Binary)
 		vInt:int = int(V.replace("#b",""), 2);
@@ -146,14 +145,15 @@ def ABS_print(ln:shared.Data) -> list[str]:
 	return instructions;
 
 def ABS_load(ln:shared.Data) -> list[str]:
-	#Example: [LOAD #0 #2]
+	#Example: [LOAD #0 #002]
 	#Load ROM segment 0 into RAM [2:]
-	try: ramAddress:int = f"{(ln.preB & 0xFFFF):16b}"; #16-bit.
+	try: ramAddress:int = bin((ln.preB & 0xFFFF))[2:].zfill(16); #16-bit.
 	except TypeError: ramAddress = ln.preB;
-	return [
+	a = [
 		f"0{ln.immediates[0]}00{getOperatorBinary('set')}{shared.REG_X}{ln.A}",  #Use "A" as the ROM segment.
-		f"1110{getOperatorBinary('mem')}{ramAddress}", #Write to this ram address.
+		f"1{ln.immediates[1]}10{getOperatorBinary('mem')}{ramAddress}", #Write to this ram address.
 	];
+	return a;
 	
 def ABS_copy(ln:shared.Data) -> list[str]:
 	#Example: [COPY #2 #10 #11]
@@ -194,7 +194,7 @@ def ABS_RAMclear(ln:shared.Data) -> list[str]:
 		f"0100{getOperatorBinary('set')}{shared.REG_X}{shared.toBin(preC)}",
 		f"0100{getOperatorBinary('set')}{shared.REG_Y}{srcEnd[:8]}",
 		f"0100{getOperatorBinary('set')}{shared.REG_Z}{srcEnd[8:]}",
-		f"1101{getOperatorBinary('mem')}{srcStart}"
+		f"1100{getOperatorBinary('mem')}{srcStart}"
 	];
 #### ABSTRACTIONS ####
 
@@ -342,7 +342,14 @@ def FORM_ROMdeclaration(lineSplit:list[str], makeHex:bool) -> bool:
 	if (not makeHex): return True; #Don't mess with ROM.
 
 	index:int = int(lineSplit[0][3:]); #ROM index to write to.
-	hexData:str = "".join(c for c in "".join(lineSplit[1:]) if c in "0123456789abcdef");
+	if (lineSplit[-1] == "#0"): lineSplit = lineSplit[:-1];
+	rawInput:str = " ".join(lineSplit[1:]);
+	if (rawInput.startswith("\"") and rawInput.endswith("\"")): #Text data;
+		hDat = "";
+		for c in rawInput[1:-1]: hDat += hex(ord(c) & 0xFF)[2:];
+	else:
+		hDat = rawInput;
+	hexData:str = "".join(c for c in "".join(hDat) if c in "0123456789abcdef");
 	if (len(hexData) % 2): hexData += "0"; #Must be of even length.
 
 	ROMbytes:list[int] = [int(hexData[i:i+2], 16) for i in range(0, len(hexData), 2)];
@@ -370,7 +377,7 @@ FORMAT_MAPPING:tuple[str, Callable[[list[str]], ...], shared.ParsedLine] = (
 
 
 def seperateIntoSections(line:str) -> list[str]:
-	lineSplit:list[str] = line.lower().split(" ");
+	lineSplit:list[str] = line.split(" ");
 	lineSplit = [operand.strip() for operand in lineSplit if operand != ""];
 
 	currentlyInBrackets:bool = False;
@@ -407,7 +414,7 @@ def convertLine(line:str, makeHex:bool=True, convertMarkers:bool=True) -> list[s
 	foundValidFormat:bool = False;
 	parsedLine:shared.ParsedLine = shared.INVALID_PARSED_LINE;
 	for form in FORMAT_MAPPING:
-		result:shared.ParsedLine = form(lineSplit);
+		result:shared.ParsedLine = form([x.lower() for x in lineSplit]);
 		if (result.valid):
 			foundValidFormat = True;
 			parsedLine = result;

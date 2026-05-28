@@ -14,7 +14,7 @@ def replaceAliases(lines:list[str]) -> list[str]:
 		#Screen res;
 		"SCREEN_WIDTH": "#x20",    "SCREEN_HEIGHT": "#x10",
 		#Memory constants;
-		"REG_SIZE": "#x40",        "RAM_SIZE": "#xF00",        "SCREEN_START_INDEX": "#xE00"
+		"REG_SIZE": "#x3F",        "RAM_SIZE": "#xFFF",        "SCREEN_START": "#xE00"
 	};
 	aliasReplaced:list[str] = [];
 	unassignedAliases:set[str] = set();
