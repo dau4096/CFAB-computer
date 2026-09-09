@@ -117,7 +117,7 @@ def fabricate(src:list[str]) -> tuple[bytes, bytes, bytes, bytes]:
 if (__name__ == "__main__"):
 	"Converts CFAB source file to into a CFAB data file to be interpreted.";
 
-	inFileName:str = "graphicsTest.cfab"; #Fallback filename, if none provided.
+	inFileName:str = "help.cfab"; #Fallback filename, if none provided.
 	if len(sys.argv) > 1: #Was given some argument(s). Treat as file(names).
 		inFileName = sys.argv[1];
 		if (len(sys.argv) > 2):	outFileName = sys.argv[2]; #Ditto but with seperate out-file name.
